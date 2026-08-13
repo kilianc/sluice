@@ -27,8 +27,8 @@ should want.
 
 Values leave the compiler only as bound parameters, so `sql` is a pure function
 of your schema and the query's structure. See the [repository
-README](../../../README.md) for the language, and
-[AGENTS.md](../../../AGENTS.md) for the specification both implementations are
+README](https://github.com/kilianc/sluice/blob/main/README.md) for the language, and
+[AGENTS.md](https://github.com/kilianc/sluice/blob/main/AGENTS.md) for the specification both implementations are
 validated against.
 
 ## Tests
@@ -37,5 +37,5 @@ validated against.
 node --test test/*.test.js
 ```
 
-The shared behaviour lives in the [conformance corpus](../../../conformance/),
+The shared behaviour lives in the [conformance corpus](https://github.com/kilianc/sluice/blob/main/conformance/),
 which drives this package and the Go reference through the same cases.
