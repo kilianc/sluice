@@ -35,10 +35,18 @@ var requestKeys = map[string]bool{
 var ignoredKeys = map[string]bool{"name": true, "description": true, "was": true}
 
 type adapterSpec struct {
-	Name     string   `json:"name"`
-	Command  []string `json:"command"`
-	Dialects []string `json:"dialects"`
-	Ops      []string `json:"ops"`
+	Name      string     `json:"name"`
+	Command   []string   `json:"command"`
+	Container *container `json:"container"`
+	Dialects  []string   `json:"dialects"`
+	Ops       []string   `json:"ops"`
+}
+
+// container declares how to run an adapter when the host cannot. A host with no
+// working runtime for a language is the normal case, not a broken one.
+type container struct {
+	Image string `json:"image"`
+	Build string `json:"build"`
 }
 
 type registry struct {
@@ -62,27 +70,82 @@ func TestConformance(t *testing.T) {
 
 	for _, spec := range reg.Adapters {
 		t.Run(spec.Name, func(t *testing.T) {
-			if reason := unavailable(root, spec); reason != "" {
+			inv, reason := resolve(root, spec)
+			if reason != "" {
 				t.Skip(reason)
+			}
+			if inv.containerized {
+				t.Logf("running %s in %s", spec.Name, spec.Container.Image)
 			}
 			for _, f := range files {
 				t.Run(f.name, func(t *testing.T) {
-					runFile(t, root, spec, f)
+					runFile(t, inv, spec, f)
 				})
 			}
 		})
 	}
 }
 
-// unavailable explains why an adapter cannot run here, or returns "" when it
-// can. A registered implementation whose runtime or entry point is missing is
-// skipped rather than failed — the JS adapter needs a JavaScript runtime, which
-// is why it is invoked through the registry rather than assumed present. An
-// adapter that starts and then misbehaves is a failure, not a skip.
-func unavailable(root string, spec adapterSpec) string {
+// invocation is a resolved way to start an adapter: on the host, or inside the
+// image the registry declares for it.
+type invocation struct {
+	root          string
+	argv          []string
+	env           []string
+	containerized bool
+}
+
+const schemaDirEnv = "SLUICE_CONFORMANCE_SCHEMAS"
+
+// resolve decides how to run an adapter here, or explains why it cannot be run
+// at all. A registered implementation whose runtime is missing or unusable is
+// skipped rather than failed — a host without a JavaScript runtime is ordinary,
+// which is why the adapter is invoked through the registry rather than assumed
+// present. An adapter that does start and then misbehaves is a failure.
+func resolve(root string, spec adapterSpec) (invocation, string) {
 	if len(spec.Command) == 0 {
-		return "adapter " + spec.Name + " registers no command"
+		return invocation{}, "adapter " + spec.Name + " registers no command"
 	}
+	host := invocation{
+		root: root,
+		argv: spec.Command,
+		env:  append(os.Environ(), schemaDirEnv+"="+filepath.Join(root, "conformance", "schemas")),
+	}
+
+	if reason := missingOnHost(root, spec); reason == "" {
+		// Nothing to fall back to, so an unusable command is the caller's
+		// problem rather than something to route around.
+		if spec.Container == nil || answers(host) {
+			return host, ""
+		}
+	} else if spec.Container == nil {
+		return invocation{}, reason
+	}
+
+	image := spec.Container.Image
+	if _, err := exec.LookPath("docker"); err != nil {
+		return invocation{}, fmt.Sprintf(
+			"adapter %q has no usable runtime on this host and docker is not installed", spec.Name)
+	}
+	if err := exec.Command("docker", "image", "inspect", image).Run(); err != nil {
+		return invocation{}, fmt.Sprintf(
+			"adapter %q needs the %s image on this host; build it with `%s`",
+			spec.Name, image, spec.Container.Build)
+	}
+	argv := append([]string{
+		"docker", "run", "--rm", "-i",
+		"-u", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()),
+		"-v", root + ":/work:ro",
+		"-w", "/work",
+		"-e", schemaDirEnv + "=/work/conformance/schemas",
+		image,
+	}, spec.Command...)
+	return invocation{root: root, argv: argv, env: os.Environ(), containerized: true}, ""
+}
+
+// missingOnHost reports why the registered command cannot run here, checking
+// the runtime and any entry point the command names.
+func missingOnHost(root string, spec adapterSpec) string {
 	if _, err := exec.LookPath(spec.Command[0]); err != nil {
 		return fmt.Sprintf("adapter %q needs %q, which is not on PATH", spec.Name, spec.Command[0])
 	}
@@ -97,7 +160,25 @@ func unavailable(root string, spec adapterSpec) string {
 	return ""
 }
 
-func runFile(t *testing.T, root string, spec adapterSpec, f corpusFile) {
+// answers reports whether an invocation is a working adapter, by asking it the
+// cheapest possible question. A runtime can be on PATH and still refuse to run.
+func answers(inv invocation) bool {
+	cmd := exec.Command(inv.argv[0], inv.argv[1:]...)
+	cmd.Dir = inv.root
+	cmd.Env = inv.env
+	cmd.Stdin = strings.NewReader(`{"id":"probe","op":"lex","input":""}` + "\n")
+	out, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	var resp map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(out))), &resp); err != nil {
+		return false
+	}
+	return resp["id"] == "probe"
+}
+
+func runFile(t *testing.T, inv invocation, spec adapterSpec, f corpusFile) {
 	reqs := make([]map[string]any, 0, len(f.Cases))
 	kept := make([]map[string]any, 0, len(f.Cases))
 	for i, c := range f.Cases {
@@ -136,7 +217,7 @@ func runFile(t *testing.T, root string, spec adapterSpec, f corpusFile) {
 		t.Skipf("adapter %q claims no op or dialect used by %s", spec.Name, f.name)
 	}
 
-	responses := drive(t, root, spec, reqs)
+	responses := drive(t, inv, spec, reqs)
 
 	for i, c := range kept {
 		id := reqs[i]["id"].(string)
@@ -196,11 +277,11 @@ func checkProtocol(t *testing.T, got map[string]any) {
 
 // drive starts an adapter, feeds it every request and collects the responses by
 // id. The adapter is expected to answer in order and exit 0 when stdin closes.
-func drive(t *testing.T, root string, spec adapterSpec, reqs []map[string]any) map[string]map[string]any {
+func drive(t *testing.T, inv invocation, spec adapterSpec, reqs []map[string]any) map[string]map[string]any {
 	t.Helper()
-	cmd := exec.Command(spec.Command[0], spec.Command[1:]...)
-	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "SLUICE_CONFORMANCE_SCHEMAS="+filepath.Join(root, "conformance", "schemas"))
+	cmd := exec.Command(inv.argv[0], inv.argv[1:]...)
+	cmd.Dir = inv.root
+	cmd.Env = inv.env
 	stderr := &strings.Builder{}
 	cmd.Stderr = stderr
 

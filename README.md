@@ -57,7 +57,17 @@ without reading the reference source.
 
 ## Status
 
-Pre-release. See [`PLAN.md`](PLAN.md) for the roadmap and design decisions.
+Pre-release. The Go reference and `@sluice/core` both pass the corpus.
+
+```bash
+make test          # Go, then the JS package
+make conformance   # the corpus against every implementation
+```
+
+Node is not required on your machine: the JS adapter and tests run in the pinned
+image from [`tools/Dockerfile`](tools/Dockerfile) when no runtime is available.
+
+See [`PLAN.md`](PLAN.md) for the roadmap and design decisions.
 
 ## License
 

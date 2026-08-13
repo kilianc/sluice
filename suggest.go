@@ -185,10 +185,7 @@ func (c *Compiler) valueSuggestions(f *Field, prefix string, span Span) []Sugges
 	var values []string
 	switch f.Type {
 	case TypeEnum:
-		values = f.Values
-		if f.Dynamic {
-			values = c.dynamic[asciiLower(f.Name)]
-		}
+		values = c.valuesOf(f, c.dynamic)
 	case TypeBoolean:
 		values = []string{"true", "false"}
 	}

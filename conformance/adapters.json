@@ -10,6 +10,11 @@
     {
       "name": "js",
       "command": ["node", "js/packages/core/bin/conformance-adapter.mjs"],
+      "container": {
+        "image": "sluice-tools",
+        "build": "make tools",
+        "$comment": "Used when the host has no working JavaScript runtime. The runner mounts the repository read-only and runs the same command inside the image."
+      },
       "dialects": ["postgres", "duckdb"],
       "ops": ["lex", "parse", "compile", "validate", "suggest", "schema"]
     }

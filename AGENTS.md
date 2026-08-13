@@ -167,6 +167,18 @@ Values are supplied as a `map[fieldName][]string` at compile time and **MUST NOT
 be cached inside the compiler. A dynamic field whose values were not supplied
 accepts any string value and offers no completions; it does not error.
 
+A dynamic field **MAY** also carry `values` inline. That is what `PublicSchema()`
+produces — the request's values resolved into the document the browser loads — so
+declaring `dynamic` alongside `values` **MUST NOT** be a `schema_invalid` error in
+any implementation. Values supplied for a request win; the inline list is the
+fallback. The field stays dynamic either way, so membership is still not enforced
+(§7.1) and a client never rejects a value its server would accept.
+
+The round trip that motivates this is `PublicSchema() → schema.json →
+createLanguage()`. Completing it also requires tolerating the absent `column`,
+which §4.3 requires of the JS implementation and not of the reference: a server
+that forgot a column should hear about it at load time, not at the first query.
+
 ### 4.5 Default operators by type
 
 | Type | Default operators |

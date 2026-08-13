@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      # Kept in step with tools/Dockerfile, which is what runs the JS adapter on
+      # a host with no JavaScript runtime.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+      - name: go vet
+        run: go vet ./...
+
+      # Both adapters are runnable here, so this runs the whole conformance
+      # matrix — the corpus against Go and JS — as well as the unit tests.
+      - name: go test
+        run: go test -race ./...
+
+      - name: js test
+        run: node --test js/packages/core/test/*.test.js
+
+      - name: every registered adapter actually ran
+        run: |
+          go test ./conformance -v 2>&1 | tee /tmp/conformance.log
+          if grep -q -- '--- SKIP: TestConformance/' /tmp/conformance.log; then
+            echo "::error::a registered adapter was skipped in CI; see the log above"
+            exit 1
+          fi

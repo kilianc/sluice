@@ -50,6 +50,18 @@
       ]
     },
     {
+      "name": "spans are codepoint offsets, not UTF-16 units or bytes",
+      "description": "An astral character is one codepoint, two UTF-16 units and four UTF-8 bytes. Every span after it must be unmoved.",
+      "input": "name = \"🎉\" AND a",
+      "tokens": [
+        { "kind": "IDENT", "value": "name", "span": [0, 4] },
+        { "kind": "OP", "value": "=", "span": [5, 6] },
+        { "kind": "STRING", "value": "🎉", "span": [7, 10] },
+        { "kind": "AND", "value": "AND", "span": [11, 14] },
+        { "kind": "IDENT", "value": "a", "span": [15, 16] }
+      ]
+    },
+    {
       "name": "keywords are case-insensitive",
       "input": "a AND b or c NOT d",
       "tokens": [

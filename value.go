@@ -73,10 +73,7 @@ func (c *Compiler) coerce(f *Field, lit ast.Literal, dynamic map[string][]string
 		if lit.Type != ast.LitString {
 			return v, "expects a quoted string", errWrongLiteral
 		}
-		values := f.Values
-		if f.Dynamic {
-			values = dynamic[asciiLower(f.Name)]
-		}
+		values := c.valuesOf(f, dynamic)
 		// A non-dynamic enum constrains its values. A dynamic one whose values
 		// were not supplied accepts any string and offers no completions; it
 		// does not error (AGENTS.md §4.4).

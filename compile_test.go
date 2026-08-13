@@ -382,6 +382,66 @@ func TestPublicSchemaCarriesNoColumnSQL(t *testing.T) {
 	}
 }
 
+func TestDynamicValuesMayArriveResolvedOnTheField(t *testing.T) {
+	// This is the shape PublicSchema emits for the browser: dynamic, with the
+	// request's values already resolved onto the field. It has to load back in,
+	// or an implementation rejects its own browser-facing schema.
+	c := machines(t, postgres.Dialect)
+	pub := c.PublicSchema(map[string][]string{"rack": {"ash1-r01", "ash1-r02"}})
+	data, err := json.Marshal(pub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	// Go keeps requiring `column`, so a server hears about a missing one at load
+	// time (AGENTS.md §4.3); restore them to exercise the rest of the round trip.
+	restored := restoreColumns(t, decoded, c.Schema())
+	schema, err := sluice.LoadSchema(restored)
+	if err != nil {
+		t.Fatalf("a resolved dynamic schema was rejected: %v", err)
+	}
+	client, err := sluice.New(schema, postgres.Dialect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := client.Suggest(`rack = "ash1`, 12); len(got) != 2 {
+		t.Errorf("suggestions = %+v, want both resolved racks", got)
+	}
+	// The field is still dynamic, so the client never rejects a value its
+	// server would have accepted.
+	if diags := client.Validate(`rack = "somewhere-else"`); len(diags) != 0 {
+		t.Errorf("diagnostics = %+v, want none", diags)
+	}
+}
+
+func restoreColumns(t *testing.T, schema map[string]any, source sluice.Schema) []byte {
+	t.Helper()
+	columns := map[string]string{}
+	for _, f := range source.Fields {
+		columns[f.Name] = f.Column
+	}
+	for _, raw := range schema["fields"].([]any) {
+		field := raw.(map[string]any)
+		field["column"] = columns[field["name"].(string)]
+	}
+	sqls := map[string]string{}
+	for _, s := range source.Sorts {
+		sqls[s.Key] = s.SQL
+	}
+	for _, raw := range schema["sorts"].([]any) {
+		sort := raw.(map[string]any)
+		sort["sql"] = sqls[sort["key"].(string)]
+	}
+	data, err := json.Marshal(schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
 func TestDialectsDifferOnlyWhereTheSpecSaysTheyMay(t *testing.T) {
 	const in = `id = "3F2504E0-4F89-11D3-9A0C-0305E82C3301" AND os_age > "2 days"`
 	pg, err := machines(t, postgres.Dialect).Compile(in)

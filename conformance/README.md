@@ -35,12 +35,28 @@ go test ./conformance -run TestConformance/js -corpus 006-security
 ```
 
 The JS adapter needs a JavaScript runtime, which is why it is invoked through the
-registry rather than assumed present; on a host without one, run it in the
-project's container:
+registry rather than assumed present. An adapter may register a `container`
+alongside its command:
+
+```json
+{ "name": "js",
+  "command": ["node", "js/packages/core/bin/conformance-adapter.mjs"],
+  "container": { "image": "sluice-tools", "build": "make tools" } }
+```
+
+The runner uses the host command when it works — it asks the adapter the
+cheapest possible question first, since a runtime can be on `PATH` and still
+refuse to run — and otherwise runs the same command inside the image, with the
+repository mounted read-only and as your own uid. On a host with no JavaScript
+runtime, or where you would rather not hand a repository to one:
 
 ```bash
 make conformance-js
 ```
+
+An adapter that can run neither way is skipped with the reason; an adapter that
+starts and then misbehaves is a failure. CI installs both runtimes and fails if
+anything is skipped, so "skipped" can never quietly become "never run".
 
 ## Case format
 
@@ -89,7 +105,8 @@ the input produced under the pre-Sluice implementation, and exists to make
 ## Adding an implementation
 
 1. Implement the adapter from AGENTS.md §11.
-2. Register it in `adapters.json`.
+2. Register it in `adapters.json`, with a `container` if its runtime is not
+   something every contributor will have.
 3. Work the corpus in file order: `001` → `002` → `003` → `004` → `005`, then
    `006` last, as the check that the invariants actually hold.
 4. Open a PR. A new language joins the CI matrix automatically once registered.

@@ -70,6 +70,25 @@
       "suggestions": [{ "text": "ASH1-R01", "kind": "value", "replaceSpan": [7, 12] }]
     },
     {
+      "name": "a dynamic field may carry the values already resolved for this request",
+      "description": "This is the shape PublicSchema() emits, and it must load back unchanged — otherwise an implementation rejects its own browser-facing schema.",
+      "schema": {
+        "name": "racks",
+        "fields": [
+          {
+            "name": "rack",
+            "type": "enum",
+            "column": "loc.name",
+            "dynamic": true,
+            "values": ["ASH1-R01", "ASH2-R01"]
+          }
+        ]
+      },
+      "input": "rack = \"ASH1",
+      "cursor": 12,
+      "suggestions": [{ "text": "ASH1-R01", "kind": "value", "replaceSpan": [7, 12] }]
+    },
+    {
       "name": "a free-typed value offers no completions",
       "input": "name = ",
       "cursor": 7,

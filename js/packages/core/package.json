@@ -1,0 +1,27 @@
+{
+  "name": "@sluice/core",
+  "version": "0.1.0-dev",
+  "description": "A configurable filter query language that compiles to SQL, with typed autocomplete from the same field declarations.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./dialects": "./src/dialects.js"
+  },
+  "files": ["src", "bin", "README.md"],
+  "bin": {
+    "sluice-conformance-adapter": "./bin/conformance-adapter.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kilianc/sluice.git",
+    "directory": "js/packages/core"
+  }
+}

@@ -201,9 +201,6 @@ func (s Schema) Validate() error {
 				bad("field %q is %s, so it cannot be dynamic", name, f.Type)
 			}
 		}
-		if f.Dynamic && len(f.Values) > 0 {
-			bad("field %q is dynamic, so its values are supplied per request", name)
-		}
 		allowed := defaultOperators[f.Type]
 		for _, op := range f.Operators {
 			if !contains(allowed, op) {
@@ -276,6 +273,19 @@ func (f Field) operators() []string {
 }
 
 func (f Field) permits(op string) bool { return contains(f.operators(), op) }
+
+// valuesOf returns the enum values in force for a field. A dynamic field takes
+// them from the request; failing that, from the values carried on the field
+// itself, which is how a schema resolved by PublicSchema reaches a browser
+// (AGENTS.md §4.4).
+func (c *Compiler) valuesOf(f *Field, dynamic map[string][]string) []string {
+	if f.Dynamic {
+		if v, ok := dynamic[asciiLower(f.Name)]; ok {
+			return v
+		}
+	}
+	return f.Values
+}
 
 func (f Field) foldsCase(o Options) bool {
 	if f.CaseInsensitive != nil {
