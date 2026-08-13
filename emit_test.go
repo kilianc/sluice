@@ -19,7 +19,7 @@ import (
 // Builder has no method that writes a value into SQL text.
 
 const (
-	operationHead = "EXISTS (SELECT 1 FROM jsonb_each(m.operations) AS op(name, payload) WHERE "
+	operationHead = "EXISTS (SELECT 1 FROM jsonb_each(inv.operations) AS op(name, payload) WHERE "
 	inProgress    = "op.payload ->> 'status' = 'in-progress'"
 )
 
@@ -68,14 +68,14 @@ func onlineEmitter(b *sluice.Builder, _ sluice.Operator, v sluice.Value) error {
 	if !v.Bool() {
 		op = ">"
 	}
-	b.WriteSQL("FLOOR(EXTRACT(EPOCH FROM (NOW() - m.last_heartbeat_at)) / 60) " +
+	b.WriteSQL("FLOOR(EXTRACT(EPOCH FROM (NOW() - inv.last_heartbeat_at)) / 60) " +
 		op + " " + b.Bind(15))
 	return nil
 }
 
 // moving: a comparison between two columns.
 func movingEmitter(b *sluice.Builder, _ sluice.Operator, v sluice.Value) error {
-	b.WriteSQL("(m.desired_group_id <> m.current_group_id) = " +
+	b.WriteSQL("(inv.desired_group_id <> inv.current_group_id) = " +
 		b.Bind(b.Dialect().BoolArg(v.Bool())))
 	return nil
 }
@@ -138,17 +138,17 @@ func TestCustomEmittersExpressTheOriginPredicates(t *testing.T) {
 		},
 		{
 			`online = true`,
-			"FLOOR(EXTRACT(EPOCH FROM (NOW() - m.last_heartbeat_at)) / 60) <= $1",
+			"FLOOR(EXTRACT(EPOCH FROM (NOW() - inv.last_heartbeat_at)) / 60) <= $1",
 			[]any{15},
 		},
 		{
 			`online = false`,
-			"FLOOR(EXTRACT(EPOCH FROM (NOW() - m.last_heartbeat_at)) / 60) > $1",
+			"FLOOR(EXTRACT(EPOCH FROM (NOW() - inv.last_heartbeat_at)) / 60) > $1",
 			[]any{15},
 		},
 		{
 			`moving = true`,
-			"(m.desired_group_id <> m.current_group_id) = $1",
+			"(inv.desired_group_id <> inv.current_group_id) = $1",
 			[]any{true},
 		},
 	} {
@@ -181,7 +181,7 @@ func TestCustomEmittersShareThePlaceholderSequence(t *testing.T) {
 	var (
 		name      = "LOWER(inv.name) = $1"
 		operation = operationHead + "LOWER(op.name) = $2 AND " + inProgress + ")"
-		moving    = "(m.desired_group_id <> m.current_group_id) = $3"
+		moving    = "(inv.desired_group_id <> inv.current_group_id) = $3"
 	)
 	want := "((" + name + " AND " + operation + ") AND " + moving + ")"
 	if res.SQL != want {

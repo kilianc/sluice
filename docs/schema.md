@@ -143,7 +143,7 @@ instead of a `column`:
 {Name: "operation", Type: sluice.TypeString, Operators: []string{"=", "!="}, Emit: operationEmitter}
 
 const inProgress = "op.payload ->> 'status' = 'in-progress'"
-const each = "EXISTS (SELECT 1 FROM jsonb_each(m.operations) AS op(name, payload) WHERE "
+const each = "EXISTS (SELECT 1 FROM jsonb_each(inv.operations) AS op(name, payload) WHERE "
 
 func operationEmitter(b *sluice.Builder, op sluice.Operator, v sluice.Value) error {
     if v.String() == "any" {
