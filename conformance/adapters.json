@@ -1,0 +1,17 @@
+{
+  "$comment": "Registry of implementations the conformance runner drives. Adding a language means adding an entry here; nothing else in the suite is language-aware. See AGENTS.md §11 for the protocol.",
+  "adapters": [
+    {
+      "name": "go",
+      "command": ["go", "run", "./cmd/sluice", "conformance-adapter"],
+      "dialects": ["postgres", "duckdb"],
+      "ops": ["lex", "parse", "compile", "validate", "suggest", "schema"]
+    },
+    {
+      "name": "js",
+      "command": ["node", "js/packages/core/bin/conformance-adapter.mjs"],
+      "dialects": ["postgres", "duckdb"],
+      "ops": ["lex", "parse", "compile", "validate", "suggest", "schema"]
+    }
+  ]
+}

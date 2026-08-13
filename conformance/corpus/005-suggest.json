@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "op": "suggest",
+  "schema": "machines",
+  "description": "Completion sets and their order at a given cursor. Field candidates order exact, then prefix, then substring, alphabetically within each group; operator and value candidates preserve declared order. Suggestions must be available for input that does not parse.",
+  "cases": [
+    {
+      "name": "field prefix",
+      "input": "ph",
+      "cursor": 2,
+      "suggestions": [{ "text": "phase", "kind": "field", "replaceSpan": [0, 2] }]
+    },
+    {
+      "name": "prefix matches sort ahead of substring matches",
+      "input": "o",
+      "cursor": 1,
+      "suggestions": [
+        { "text": "online", "kind": "field", "replaceSpan": [0, 1] },
+        { "text": "os_age", "kind": "field", "replaceSpan": [0, 1] },
+        { "text": "cores", "kind": "field", "replaceSpan": [0, 1] }
+      ]
+    },
+    {
+      "name": "operators for an enum field, in declared order",
+      "input": "phase ",
+      "cursor": 6,
+      "suggestions": [
+        { "text": "=", "kind": "operator", "replaceSpan": [6, 6] },
+        { "text": "!=", "kind": "operator", "replaceSpan": [6, 6] },
+        { "text": "~", "kind": "operator", "replaceSpan": [6, 6] },
+        { "text": "!~", "kind": "operator", "replaceSpan": [6, 6] }
+      ]
+    },
+    {
+      "name": "a boolean field offers only equality",
+      "input": "online ",
+      "cursor": 7,
+      "suggestions": [{ "text": "=", "kind": "operator", "replaceSpan": [7, 7] }]
+    },
+    {
+      "name": "enum values in declared order",
+      "input": "phase = ",
+      "cursor": 8,
+      "suggestions": [
+        { "text": "in-use", "kind": "value", "replaceSpan": [8, 8] },
+        { "text": "not-in-use", "kind": "value", "replaceSpan": [8, 8] },
+        { "text": "maintenance", "kind": "value", "replaceSpan": [8, 8] }
+      ]
+    },
+    {
+      "name": "the opening quote is stripped from the prefix and covered by replaceSpan",
+      "input": "phase = \"not",
+      "cursor": 12,
+      "suggestions": [{ "text": "not-in-use", "kind": "value", "replaceSpan": [8, 12] }]
+    },
+    {
+      "name": "boolean values",
+      "input": "online = ",
+      "cursor": 9,
+      "suggestions": [
+        { "text": "true", "kind": "value", "replaceSpan": [9, 9] },
+        { "text": "false", "kind": "value", "replaceSpan": [9, 9] }
+      ]
+    },
+    {
+      "name": "dynamic enum values are offered when supplied",
+      "input": "rack = \"ASH1",
+      "cursor": 12,
+      "dynamic": { "rack": ["ASH1-R01", "ASH2-R01"] },
+      "suggestions": [{ "text": "ASH1-R01", "kind": "value", "replaceSpan": [7, 12] }]
+    },
+    {
+      "name": "a free-typed value offers no completions",
+      "input": "name = ",
+      "cursor": 7,
+      "suggestions": []
+    },
+    {
+      "name": "after a complete predicate, conjunctions",
+      "input": "phase = \"in-use\" ",
+      "cursor": 17,
+      "suggestions": [
+        { "text": "AND", "kind": "keyword", "replaceSpan": [17, 17] },
+        { "text": "OR", "kind": "keyword", "replaceSpan": [17, 17] }
+      ]
+    },
+    {
+      "name": "a closing paren is offered only while one is open",
+      "input": "(phase = \"in-use\" ",
+      "cursor": 18,
+      "suggestions": [
+        { "text": "AND", "kind": "keyword", "replaceSpan": [18, 18] },
+        { "text": "OR", "kind": "keyword", "replaceSpan": [18, 18] },
+        { "text": ")", "kind": "keyword", "replaceSpan": [18, 18] }
+      ]
+    },
+    {
+      "name": "bare value fallback wraps the prefix into whole predicates",
+      "input": "web-1",
+      "cursor": 5,
+      "suggestions": [
+        { "text": "name = \"web-1\"", "kind": "expression", "replaceSpan": [0, 5] },
+        { "text": "name ~ \"web-1\"", "kind": "expression", "replaceSpan": [0, 5] }
+      ]
+    },
+    {
+      "name": "a bare uuid prefers uuid-typed fields",
+      "input": "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+      "cursor": 36,
+      "suggestions": [
+        {
+          "text": "id = \"3f2504e0-4f89-11d3-9a0c-0305e82c3301\"",
+          "kind": "expression",
+          "replaceSpan": [0, 36]
+        },
+        {
+          "text": "name = \"3f2504e0-4f89-11d3-9a0c-0305e82c3301\"",
+          "kind": "expression",
+          "replaceSpan": [0, 36]
+        },
+        {
+          "text": "name ~ \"3f2504e0-4f89-11d3-9a0c-0305e82c3301\"",
+          "kind": "expression",
+          "replaceSpan": [0, 36]
+        }
+      ]
+    },
+    {
+      "name": "completions are available on input that does not parse",
+      "input": "phase = \"in-use\" AND onl",
+      "cursor": 24,
+      "suggestions": [{ "text": "online", "kind": "field", "replaceSpan": [21, 24] }]
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "op": "compile",
+  "schema": "machines",
+  "dialect": "duckdb",
+  "description": "The same predicates as 004-compile-postgres, showing exactly what a dialect is allowed to change: placeholder rendering, type casts, and the duration form. Structure, parenthesization, argument order and case folding are dialect-independent.",
+  "cases": [
+    {
+      "name": "positional placeholders render as ?",
+      "input": "phase = \"in-use\"",
+      "sql": "LOWER(inv.phase) = ?",
+      "args": ["in-use"],
+      "fields": ["phase"]
+    },
+    {
+      "name": "contains",
+      "input": "name ~ \"Cell\"",
+      "sql": "LOWER(inv.name) LIKE ? ESCAPE '\\'",
+      "args": ["%cell%"],
+      "fields": ["name"]
+    },
+    {
+      "name": "boolean",
+      "input": "online = true",
+      "sql": "inv.online = ?",
+      "args": [true],
+      "fields": ["online"]
+    },
+    {
+      "name": "uuid cast differs in spelling only",
+      "input": "id = \"3F2504E0-4F89-11D3-9A0C-0305E82C3301\"",
+      "sql": "inv.id = ?::UUID",
+      "args": ["3f2504e0-4f89-11d3-9a0c-0305e82c3301"],
+      "fields": ["id"]
+    },
+    {
+      "name": "duration uses date_diff but still binds seconds",
+      "input": "os_age > \"2 days\"",
+      "sql": "date_diff('second', img.created_at, current_timestamp) > ?",
+      "args": [172800],
+      "fields": ["os_age"]
+    },
+    {
+      "name": "precedence and parenthesization are dialect-independent",
+      "input": "phase = \"in-use\" OR online = true AND cores > 8",
+      "sql": "(LOWER(inv.phase) = ? OR (inv.online = ? AND inv.cores > ?))",
+      "args": ["in-use", true, 8],
+      "fields": ["phase", "online", "cores"]
+    },
+    {
+      "name": "empty input compiles to empty",
+      "input": "",
+      "sql": "",
+      "args": [],
+      "fields": []
+    }
+  ]
+}

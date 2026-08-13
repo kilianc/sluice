@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "op": "compile",
+  "schema": "machines",
+  "dialect": "postgres",
+  "description": "Regression corpus. Every input here compiled to executable SQL under the origin implementation, the implementation Sluice generalizes, because unrecognized tokens were copied verbatim into the WHERE clause. Each must now produce a diagnostic and no SQL. Run this file first when a port believes it is finished. The related wildcard bug — name ~ \"%\" matching every row — is asserted in 004 rather than here, since it is a compile-output regression rather than a rejection.",
+  "cases": [
+    {
+      "name": "bare tautology",
+      "input": "1=1",
+      "was": "1 = 1",
+      "diagnostics": [{ "code": "unexpected_token", "span": [0, 1] }]
+    },
+    {
+      "name": "tautology appended to a valid predicate",
+      "input": "phase = \"in-use\" AND 1=1",
+      "was": "LOWER(phase) = 'in-use' AND 1 = 1",
+      "diagnostics": [{ "code": "unexpected_token", "span": [21, 22] }]
+    },
+    {
+      "name": "subquery smuggled through the unknown-token branch",
+      "input": "phase = \"in-use\" OR EXISTS (SELECT 1 FROM machine)",
+      "was": "LOWER(phase) = 'in-use' OR exists ( select 1 from machine )",
+      "diagnostics": [{ "code": "unknown_field", "span": [20, 26] }]
+    },
+    {
+      "name": "undeclared column reached the output as an identifier",
+      "input": "bogus_column = \"x\"",
+      "was": "bogus_column = 'x'",
+      "diagnostics": [{ "code": "unknown_field", "span": [0, 12] }]
+    },
+    {
+      "name": "statement separator",
+      "input": "name = \"x\"; DROP TABLE machine",
+      "was": "LOWER(name) = 'x' ; drop table machine",
+      "diagnostics": [{ "code": "unexpected_token", "span": [10, 11] }]
+    },
+    {
+      "name": "set operation appended to a valid predicate",
+      "input": "name = \"x\" UNION SELECT 1",
+      "was": "LOWER(name) = 'x' union select 1",
+      "diagnostics": [{ "code": "unexpected_token", "span": [11, 16] }]
+    },
+    {
+      "name": "SQL line comment",
+      "input": "name = \"x\" -- comment",
+      "was": "LOWER(name) = 'x' -- comment",
+      "diagnostics": [{ "code": "unexpected_token", "span": [11, 12] }]
+    },
+    {
+      "name": "single-quoted literal escaping the quoting rules",
+      "input": "name = 'x' OR 1=1",
+      "was": "LOWER(name) = 'x' or 1 = 1",
+      "diagnostics": [{ "code": "unexpected_token", "span": [7, 8] }]
+    },
+    {
+      "name": "parenthesis balance abused to escape the wrapping predicate",
+      "input": "phase = \"in-use\") OR (1=1",
+      "was": "LOWER(phase) = 'in-use' ) OR ( 1 = 1",
+      "diagnostics": [{ "code": "unbalanced_paren", "span": [16, 17] }]
+    },
+    {
+      "name": "function call in value position",
+      "input": "name = pg_sleep(10)",
+      "was": "LOWER(name) = pg_sleep ( 10 )",
+      "diagnostics": [{ "code": "unexpected_token", "span": [7, 15] }]
+    },
+    {
+      "name": "nesting depth is bounded before the parser allocates",
+      "input": "((((((((((((((((((phase = \"in-use\"))))))))))))))))))",
+      "diagnostics": [{ "code": "depth_exceeded", "span": [16, 17] }]
+    }
+  ]
+}

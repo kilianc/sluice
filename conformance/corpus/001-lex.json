@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "op": "lex",
+  "schema": "machines",
+  "description": "Token streams and spans. Spans are 0-based codepoint offsets, half-open. The trailing EOF token is omitted.",
+  "cases": [
+    {
+      "name": "operators do not require surrounding whitespace",
+      "input": "phase=\"in-use\"",
+      "tokens": [
+        { "kind": "IDENT", "value": "phase", "span": [0, 5] },
+        { "kind": "OP", "value": "=", "span": [5, 6] },
+        { "kind": "STRING", "value": "in-use", "span": [6, 14] }
+      ]
+    },
+    {
+      "name": "longest match wins: !=",
+      "input": "phase!=\"x\"",
+      "tokens": [
+        { "kind": "IDENT", "value": "phase", "span": [0, 5] },
+        { "kind": "OP", "value": "!=", "span": [5, 7] },
+        { "kind": "STRING", "value": "x", "span": [7, 10] }
+      ]
+    },
+    {
+      "name": "longest match wins: !~ (unreachable in the origin implementation)",
+      "input": "name!~\"cell\"",
+      "tokens": [
+        { "kind": "IDENT", "value": "name", "span": [0, 4] },
+        { "kind": "OP", "value": "!~", "span": [4, 6] },
+        { "kind": "STRING", "value": "cell", "span": [6, 12] }
+      ]
+    },
+    {
+      "name": "longest match wins: >=",
+      "input": "os_age>=\"2 days\"",
+      "tokens": [
+        { "kind": "IDENT", "value": "os_age", "span": [0, 6] },
+        { "kind": "OP", "value": ">=", "span": [6, 8] },
+        { "kind": "STRING", "value": "2 days", "span": [8, 16] }
+      ]
+    },
+    {
+      "name": "string escapes: value is unescaped, span covers the delimiters",
+      "input": "name = \"a\\\"b\"",
+      "tokens": [
+        { "kind": "IDENT", "value": "name", "span": [0, 4] },
+        { "kind": "OP", "value": "=", "span": [5, 6] },
+        { "kind": "STRING", "value": "a\"b", "span": [7, 13] }
+      ]
+    },
+    {
+      "name": "keywords are case-insensitive",
+      "input": "a AND b or c NOT d",
+      "tokens": [
+        { "kind": "IDENT", "value": "a", "span": [0, 1] },
+        { "kind": "AND", "value": "AND", "span": [2, 5] },
+        { "kind": "IDENT", "value": "b", "span": [6, 7] },
+        { "kind": "OR", "value": "or", "span": [8, 10] },
+        { "kind": "IDENT", "value": "c", "span": [11, 12] },
+        { "kind": "NOT", "value": "NOT", "span": [13, 16] },
+        { "kind": "IDENT", "value": "d", "span": [17, 18] }
+      ]
+    },
+    {
+      "name": "numbers, including negative and fractional",
+      "input": "cores>=32 AND cores<-1.5",
+      "tokens": [
+        { "kind": "IDENT", "value": "cores", "span": [0, 5] },
+        { "kind": "OP", "value": ">=", "span": [5, 7] },
+        { "kind": "NUMBER", "value": 32, "span": [7, 9] },
+        { "kind": "AND", "value": "AND", "span": [10, 13] },
+        { "kind": "IDENT", "value": "cores", "span": [14, 19] },
+        { "kind": "OP", "value": "<", "span": [19, 20] },
+        { "kind": "NUMBER", "value": -1.5, "span": [20, 24] }
+      ]
+    },
+    {
+      "name": "boolean literals",
+      "input": "online=true",
+      "tokens": [
+        { "kind": "IDENT", "value": "online", "span": [0, 6] },
+        { "kind": "OP", "value": "=", "span": [6, 7] },
+        { "kind": "TRUE", "value": true, "span": [7, 11] }
+      ]
+    },
+    {
+      "name": "parentheses",
+      "input": "(a)",
+      "tokens": [
+        { "kind": "LPAREN", "value": "(", "span": [0, 1] },
+        { "kind": "IDENT", "value": "a", "span": [1, 2] },
+        { "kind": "RPAREN", "value": ")", "span": [2, 3] }
+      ]
+    }
+  ]
+}

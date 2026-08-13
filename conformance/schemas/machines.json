@@ -1,0 +1,60 @@
+{
+  "name": "machines",
+  "options": {
+    "caseInsensitive": true,
+    "maxLength": 4096,
+    "maxDepth": 16,
+    "maxPredicates": 64,
+    "fallbackFields": ["name"]
+  },
+  "fields": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "column": "inv.id",
+      "description": "Machine id"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "column": "inv.name",
+      "description": "Machine hostname"
+    },
+    {
+      "name": "phase",
+      "type": "enum",
+      "column": "inv.phase",
+      "values": ["in-use", "not-in-use", "maintenance"],
+      "description": "Lifecycle phase"
+    },
+    {
+      "name": "online",
+      "type": "boolean",
+      "column": "inv.online",
+      "description": "Heartbeat received in the last 15 minutes"
+    },
+    {
+      "name": "cores",
+      "type": "number",
+      "column": "inv.cores",
+      "description": "CPU core count"
+    },
+    {
+      "name": "os_age",
+      "type": "duration",
+      "column": "img.created_at",
+      "description": "Age of the installed OS image"
+    },
+    {
+      "name": "rack",
+      "type": "enum",
+      "column": "loc.name",
+      "dynamic": true,
+      "description": "Rack the machine is installed in"
+    }
+  ],
+  "sorts": [
+    { "key": "name", "sql": "inv.name" },
+    { "key": "phase", "sql": "inv.phase" }
+  ]
+}

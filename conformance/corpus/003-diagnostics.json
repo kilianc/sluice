@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "op": "compile",
+  "schema": "machines",
+  "dialect": "postgres",
+  "description": "Diagnostic codes and spans. Messages are deliberately not asserted — the runner compares code and span only. Cases with op 'validate' assert that every independent diagnostic is reported, not just the first.",
+  "cases": [
+    {
+      "name": "unknown field",
+      "input": "phse = \"x\"",
+      "diagnostics": [{ "code": "unknown_field", "span": [0, 4] }]
+    },
+    {
+      "name": "bare identifier is not a value",
+      "input": "phase = in-use",
+      "diagnostics": [{ "code": "unexpected_token", "span": [8, 10] }]
+    },
+    {
+      "name": "trailing conjunction",
+      "input": "phase = \"in-use\" AND",
+      "diagnostics": [{ "code": "unexpected_eof", "span": [20, 20] }]
+    },
+    {
+      "name": "unclosed parenthesis",
+      "input": "(phase = \"in-use\"",
+      "diagnostics": [{ "code": "unbalanced_paren", "span": [0, 1] }]
+    },
+    {
+      "name": "unterminated string",
+      "input": "name = \"abc",
+      "diagnostics": [{ "code": "unterminated_string", "span": [7, 11] }]
+    },
+    {
+      "name": "invalid escape",
+      "input": "name = \"a\\qb\"",
+      "diagnostics": [{ "code": "invalid_escape", "span": [9, 11] }]
+    },
+    {
+      "name": "operator not permitted for a boolean field",
+      "input": "online ~ \"x\"",
+      "diagnostics": [{ "code": "unknown_operator_for_field", "span": [7, 8] }]
+    },
+    {
+      "name": "value outside a static enum",
+      "input": "phase = \"bogus\"",
+      "diagnostics": [{ "code": "invalid_value_for_field", "span": [8, 15] }]
+    },
+    {
+      "name": "malformed uuid",
+      "input": "id = \"not-a-uuid\"",
+      "diagnostics": [{ "code": "invalid_value_for_field", "span": [5, 17] }]
+    },
+    {
+      "name": "duration with an unsupported unit",
+      "input": "os_age > \"2 fortnights\"",
+      "diagnostics": [{ "code": "invalid_duration", "span": [9, 23] }]
+    },
+    {
+      "name": "single quotes are not string delimiters",
+      "input": "name = 'x'",
+      "diagnostics": [{ "code": "unexpected_token", "span": [7, 8] }]
+    },
+    {
+      "name": "implicit conjunction is not supported",
+      "input": "phase = \"in-use\" online = true",
+      "diagnostics": [{ "code": "unexpected_token", "span": [17, 23] }]
+    },
+    {
+      "name": "a dynamic enum with no supplied values accepts any string",
+      "input": "rack = \"anything\"",
+      "diagnostics": []
+    },
+    {
+      "name": "validate reports every independent diagnostic",
+      "op": "validate",
+      "input": "phse = \"x\" AND online ~ \"y\"",
+      "diagnostics": [
+        { "code": "unknown_field", "span": [0, 4] },
+        { "code": "unknown_operator_for_field", "span": [22, 23] }
+      ]
+    },
+    {
+      "name": "compile stops at the first diagnostic and emits no SQL",
+      "input": "phse = \"x\" AND online ~ \"y\"",
+      "diagnostics": [{ "code": "unknown_field", "span": [0, 4] }]
+    }
+  ]
+}
