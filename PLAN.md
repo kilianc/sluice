@@ -27,6 +27,27 @@ deriving typed autocomplete from the same declaration the compiler uses is the
 part that is actually differentiated. Everything below is in service of extracting
 that idea and making it safe to hand to strangers.
 
+### Reading the origin
+
+`a private internal tool` is a private repository, so the files below are a local
+reference rather than something a contributor can fetch. Nothing in Sluice depends
+on having them — `AGENTS.md` is written to stand alone, and the conformance corpus
+already pins the behavior — but two of them answer questions the spec can only
+assert.
+
+| path (local checkout at `a private repository`) | why |
+|---|---|
+| `the origin column table` | The four predicates that are not a column comparison: `operation` (an `EXISTS` over a JSONB column), `blocked`, `online`, `moving`. These are the cases the custom emitter of `AGENTS.md` §8.4 exists to serve. |
+| `the origin column table` | The field declaration this project generalizes, and the sort-key table behind §8.6. |
+| `the origin compile loop` | The compile loop whose final `else` is §2.1. Worth reading once to see how ordinary the mistake looks in context. |
+| `the origin suggester` | The suggestion graph, and the bare-value fallback that `AGENTS.md` §10.5 keeps. |
+
+Treat the four custom-emitter predicates as an acceptance test on the emitter
+interface, not as code to port: if they express cleanly through `Builder`, the
+escape hatch is sufficient. If they do not, the interface needs rethinking before
+v0.1.0 rather than during the M5 migration, when a caller is already depending on
+it.
+
 ---
 
 ## 2. What has to change
@@ -256,7 +277,9 @@ that suggests otherwise ships.
 
 **M1 — Go core.** Lexer, parser, AST + JSON codec, resolver, emitter, Postgres and
 DuckDB dialects, diagnostics with spans, `OrderBy`. Corpus `001`–`004` and `006`
-authored alongside. Exit: `go test ./...` green, `006` fully green.
+authored alongside. Exit: `go test ./...` green, `006` fully green. Start from
+§1 "Reading the origin": the custom emitter is the one interface M1 cannot defer,
+because M5 will be depending on it.
 
 **M2 — JS core + conformance harness.** `@sluice/core` to parity, adapter protocol
 implemented on both sides, runner and registry, CI matrix. Corpus `005` authored
