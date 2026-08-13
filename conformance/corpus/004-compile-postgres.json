@@ -41,6 +41,18 @@
       "fields": ["name"]
     },
     {
+      "name": "a case-sensitive field folds neither the column nor the argument",
+      "schema": {
+        "name": "tags",
+        "options": { "caseInsensitive": false },
+        "fields": [{ "name": "tag", "type": "string", "column": "t.name" }]
+      },
+      "input": "tag ~ \"Cell\"",
+      "sql": "t.name LIKE $1 ESCAPE '\\'",
+      "args": ["%Cell%"],
+      "fields": ["tag"]
+    },
+    {
       "name": "LIKE metacharacters are escaped in the argument — the origin bug",
       "input": "name ~ \"100%_x\"",
       "sql": "LOWER(inv.name) LIKE $1 ESCAPE '\\'",

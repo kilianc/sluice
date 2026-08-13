@@ -13,8 +13,8 @@ phase = "in-use" AND rack ~ "ash1" AND NOT online = true
 c, _ := sluice.New(schema, postgres.Dialect)
 res, _ := c.Compile(`phase = "in-use" AND rack ~ "ash1"`)
 
-res.SQL    // (LOWER(inv.phase) = $1 AND UPPER(loc.name) LIKE $2 ESCAPE '\')
-res.Args   // []any{"in-use", "%ASH1%"}
+res.SQL    // (LOWER(inv.phase) = $1 AND LOWER(loc.name) LIKE $2 ESCAPE '\')
+res.Args   // []any{"in-use", "%ash1%"}
 res.Fields // []string{"phase", "rack"} — so you can prune joins
 ```
 

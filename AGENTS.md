@@ -269,7 +269,10 @@ Enum membership is compared case-insensitively when the field is case-insensitiv
 
 ### 7.2 Duration literals
 
-Grammar: `<number><unit>` pairs, optionally space-separated, at least one pair.
+Grammar: `<count><unit>` pairs, optionally space-separated, at least one pair.
+A count is a run of ASCII digits — non-negative and never fractional, because
+coercion must yield whole seconds. `"1.5h"` and `"-1d"` are `invalid_duration`;
+write `"90 minutes"`.
 Units, case-insensitive: `s`/`sec`/`secs`/`second`/`seconds`, `m`/`min`/`mins`/`minute`/`minutes`,
 `h`/`hr`/`hrs`/`hour`/`hours`, `d`/`day`/`days`, `w`/`week`/`weeks`.
 
@@ -307,7 +310,8 @@ Let `C` be the field's `column` and `P` the next placeholder.
 |---|---|---|---|
 | `string`, `enum` (case-sensitive) | `=` `!=` | `C = P` | value |
 | `string`, `enum` (case-insensitive) | `=` `!=` | `LOWER(C) = P` | value lowercased |
-| `string`, `enum` | `~` `!~` | `LOWER(C) LIKE P ESCAPE '\'` (or `NOT LIKE`) | `%` + escaped, lowercased value + `%` |
+| `string`, `enum` (case-sensitive) | `~` `!~` | `C LIKE P ESCAPE '\'` (or `NOT LIKE`) | `%` + escaped value + `%` |
+| `string`, `enum` (case-insensitive) | `~` `!~` | `LOWER(C) LIKE P ESCAPE '\'` (or `NOT LIKE`) | `%` + escaped, lowercased value + `%` |
 | `boolean` | `=` | `C = P` | boolean |
 | `number` | all | `C < P` | number |
 | `uuid` | `=` `!=` | `C = P<uuidCast>` | lowercased uuid string |

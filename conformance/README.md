@@ -63,6 +63,13 @@ Comparison follows AGENTS.md §11: `sql` is an exact string match; `args`,
 diagnostics compare on `code` and `span` only. **A case can never assert
 diagnostic wording**, so messages stay free to improve without a corpus churn.
 
+Objects compare as subsets and arrays do not: every key a case names must be
+present and equal, keys it does not name are ignored, and an array must have
+exactly the expected length. That is what lets a case assert a diagnostic's code
+and span without freezing its message, and lets an implementation carry the
+optional parts of the protocol — spans on non-predicate AST nodes, `detail` on a
+suggestion — without a case having to know about them.
+
 Keys the runner ignores: `name`, `description`, and `was` — the last records what
 the input produced under the pre-Sluice implementation, and exists to make
 `006-security.json` legible as history rather than a list of strings.

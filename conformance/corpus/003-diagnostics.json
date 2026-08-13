@@ -56,6 +56,11 @@
       "diagnostics": [{ "code": "invalid_duration", "span": [9, 23] }]
     },
     {
+      "name": "durations are whole seconds, so a fractional count is not one",
+      "input": "os_age > \"1.5h\"",
+      "diagnostics": [{ "code": "invalid_duration", "span": [9, 15] }]
+    },
+    {
       "name": "single quotes are not string delimiters",
       "input": "name = 'x'",
       "diagnostics": [{ "code": "unexpected_token", "span": [7, 8] }]

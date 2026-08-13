@@ -171,8 +171,8 @@ schema, err := sluice.LoadSchema(jsonBytes)      // or a native sluice.Schema
 c, err := sluice.New(schema, postgres.Dialect)
 
 res, err := c.Compile(`phase = "in-use" AND rack ~ "ash1"`)
-res.SQL      // (LOWER(inv.phase) = $1 AND UPPER(loc.name) LIKE $2 ESCAPE '\')
-res.Args     // []any{"in-use", "%ASH1%"}
+res.SQL      // (LOWER(inv.phase) = $1 AND LOWER(loc.name) LIKE $2 ESCAPE '\')
+res.Args     // []any{"in-use", "%ash1%"}
 res.Fields   // []string{"phase", "rack"} — for join pruning
 res.AST      // *ast.Node
 
