@@ -1,52 +1,44 @@
 # Plan
 
-Sluice generalizes the origin implementation, the filter language built for `a private internal tool`.
-This document records where it came from, what has to change, and the order the
-work lands in. The normative language specification lives in [`AGENTS.md`](AGENTS.md);
-this file is the roadmap and the decision log.
+Sluice generalizes the filter language of a private internal tool. This document
+records what has to change on the way out, and the order the work lands in. The
+normative language specification lives in [`AGENTS.md`](AGENTS.md); this file is
+the roadmap and the decision log.
 
 ---
 
 ## 1. Origin
 
-the origin implementation is roughly 1,300 lines across two independent implementations of one grammar.
+The origin implementation is roughly 1,300 lines across two independent
+implementations of one grammar.
 
-**Go** (`the origin sources`, ~470 LOC) — a regex tokenizer feeding a single-pass compiler that
-emits a SQL `WHERE` fragment. Fields are a package-level `[]Column`; each field
-maps to a per-backend SQL emitter, with Postgres and DuckDB backends.
+**Go** (~470 LOC) — a regex tokenizer feeding a single-pass compiler that emits a
+SQL `WHERE` fragment. Fields are a package-level slice; each field maps to a
+per-backend SQL emitter, with Postgres and DuckDB backends.
 
-**JavaScript** (`the origin editor sources/`, ~850 LOC) — a second implementation of the same
-grammar that builds a DFA-shaped "suggestion graph" from the field list and drives
-Monaco autocomplete plus inline validation with error spans. The Go field list is
+**JavaScript** (~850 LOC) — a second implementation of the same grammar that
+builds a DFA-shaped "suggestion graph" from the field list and drives Monaco
+autocomplete plus inline validation with error spans. The Go field list is
 serialized to JSON and injected into the browser as a generated ES module, with
 dynamic enum values filled per request.
 
 What is worth keeping is the shape of the idea: **one field declaration produces
 both the compiler and the editor**. Filter-string-to-SQL libraries are common;
 deriving typed autocomplete from the same declaration the compiler uses is the
-part that is actually differentiated. Everything below is in service of extracting
-that idea and making it safe to hand to strangers.
+part that is actually differentiated. Everything below is in service of
+extracting that idea and making it safe to hand to strangers.
 
-### Reading the origin
+Nothing in Sluice depends on access to that source. `AGENTS.md` is written to
+stand alone and the conformance corpus pins the behavior, which is what makes the
+extraction checkable rather than a matter of memory.
 
-`a private internal tool` is a private repository, so the files below are a local
-reference rather than something a contributor can fetch. Nothing in Sluice depends
-on having them — `AGENTS.md` is written to stand alone, and the conformance corpus
-already pins the behavior — but two of them answer questions the spec can only
-assert.
-
-| path (local checkout at `a private repository`) | why |
-|---|---|
-| `the origin column table` | The four predicates that are not a column comparison: `operation` (an `EXISTS` over a JSONB column), `blocked`, `online`, `moving`. These are the cases the custom emitter of `AGENTS.md` §8.4 exists to serve. |
-| `the origin column table` | The field declaration this project generalizes, and the sort-key table behind §8.6. |
-| `the origin compile loop` | The compile loop whose final `else` is §2.1. Worth reading once to see how ordinary the mistake looks in context. |
-| `the origin suggester` | The suggestion graph, and the bare-value fallback that `AGENTS.md` §10.5 keeps. |
-
-Treat the four custom-emitter predicates as an acceptance test on the emitter
-interface, not as code to port: if they express cleanly through `Builder`, the
-escape hatch is sufficient. If they do not, the interface needs rethinking before
-v0.1.0 rather than during the M5 migration, when a caller is already depending on
-it.
+Four of its predicates are not a column comparison — an `EXISTS` over a JSONB
+column, a name that selects between two columns by its value, a derived
+comparison over a heartbeat timestamp, and a comparison between two columns.
+Treat them as an acceptance test on the emitter interface rather than as code to
+port: if they express cleanly through `Builder`, the escape hatch is sufficient.
+If they do not, the interface needs rethinking before v0.1.0 rather than after a
+caller depends on it.
 
 ---
 
@@ -92,7 +84,7 @@ cannot own process-global state or panic on caller input. Becomes
 ### 2.4 De-domaining
 
 Fields become configuration — a native struct or the canonical JSON of `AGENTS.md`
-§4.3. Fleet concepts leave the library entirely; the awkward ones (`operation` as
+§4.3. Host concepts leave the library entirely; the awkward ones (`operation` as
 an `EXISTS` over JSONB, `blocked`, `online`) survive the move as custom emitters
 (§8.4), which is the feature that proves the escape hatch is sufficient.
 
@@ -236,7 +228,8 @@ Files, in the order a port should attack them:
 | `006-security.json` | every injection attempt the original implementation accepted, asserted to produce a diagnostic and no SQL |
 
 `006` is a regression corpus in the strict sense: each case is a query that
-compiled to executable SQL under the origin implementation. It is the file a port should run first when
+compiled to executable SQL in the origin implementation. It is the file a port
+should run first when
 it thinks it is finished.
 
 The reference runner is `go test ./conformance`, which shells out to each
@@ -279,7 +272,7 @@ that suggests otherwise ships.
 DuckDB dialects, diagnostics with spans, `OrderBy`. Corpus `001`–`004` and `006`
 authored alongside. Exit: `go test ./...` green, `006` fully green. Start from
 §1 "Reading the origin": the custom emitter is the one interface M1 cannot defer,
-because M5 will be depending on it.
+because a caller will be depending on it.
 
 **M2 — JS core + conformance harness.** `@sluice/core` to parity, adapter protocol
 implemented on both sides, runner and registry, CI matrix. Corpus `005` authored
@@ -290,21 +283,17 @@ against both. Exit: identical results from both adapters on the whole corpus.
 pkg.go.dev and npm under the `@sluice` scope. Exit: a stranger can install it and
 compile a query from the README without reading anything else.
 
-**M4 — editor.** `@sluice/monaco`, extracted from the current `the origin editor`
-and reduced to a binding over `@sluice/core`. Ships a live playground built on
-PGlite, which doubles as the Mode A reference. Exit: v0.2.0.
+**M4 — editor.** `@sluice/monaco`, reduced to a binding over `@sluice/core`.
+Ships a live playground built on PGlite, which doubles as the Mode A reference.
+Exit: v0.2.0.
 
-**M5 — migration.** `a private internal tool` drops `the origin sources` and `the origin editor sources/`
-and depends on Sluice, with its fleet schema in config and its four gnarly fields
-as custom emitters. This is the milestone that proves the extraction; the API is
-not stable until a real caller has survived it.
-
-**M6 — breadth.** SQLite and MySQL dialects, `@sluice/codemirror`, deferred
+**M5 — breadth.** SQLite and MySQL dialects, `@sluice/codemirror`, deferred
 grammar features from §2.7 as demand justifies.
 
-Ordering note: M5 deliberately follows the v0.1.0 tag rather than preceding it.
-Migrating before publishing would let host-specific convenience leak back into the
-library, which is the failure mode this whole exercise exists to avoid.
+Ordering note: migrating the internal caller deliberately follows the v0.1.0 tag
+rather than preceding it. Migrating before publishing would let host-specific
+convenience leak back into the library, which is the failure mode this whole
+exercise exists to avoid.
 
 ---
 

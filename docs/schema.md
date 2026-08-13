@@ -61,8 +61,8 @@ JSON.
 
 ¹ unless the field carries a custom emitter (below).
 
-`column` is a SQL expression, not just a column name — `inv.metadata ->> 'ip'`
-and `LOWER(hinv.name)` are fine. It is emitted verbatim, so it must be yours.
+`column` is a SQL expression, not just a column name — `inv.metadata ->> 'ip'` and
+`LOWER(t.name)` are fine. It is emitted verbatim, so it must be yours.
 
 `and`, `or`, `not`, `true` and `false` are reserved and cannot be field names.
 
@@ -143,7 +143,7 @@ instead of a `column`:
 {Name: "operation", Type: sluice.TypeString, Operators: []string{"=", "!="}, Emit: operationEmitter}
 
 const inProgress = "op.payload ->> 'status' = 'in-progress'"
-const each = "EXISTS (SELECT 1 FROM jsonb_each(inv.operations) AS op(name, payload) WHERE "
+const each = "EXISTS (SELECT 1 FROM jsonb_each(m.operations) AS op(name, payload) WHERE "
 
 func operationEmitter(b *sluice.Builder, op sluice.Operator, v sluice.Value) error {
     if v.String() == "any" {

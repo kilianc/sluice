@@ -19,7 +19,7 @@ import (
 // Builder has no method that writes a value into SQL text.
 
 const (
-	operationHead = "EXISTS (SELECT 1 FROM jsonb_each(inv.operations) AS op(name, payload) WHERE "
+	operationHead = "EXISTS (SELECT 1 FROM jsonb_each(m.operations) AS op(name, payload) WHERE "
 	inProgress    = "op.payload ->> 'status' = 'in-progress'"
 )
 
@@ -68,22 +68,22 @@ func onlineEmitter(b *sluice.Builder, _ sluice.Operator, v sluice.Value) error {
 	if !v.Bool() {
 		op = ">"
 	}
-	b.WriteSQL("FLOOR(EXTRACT(EPOCH FROM (NOW() - inv.last_heartbeat_at)) / 60) " +
+	b.WriteSQL("FLOOR(EXTRACT(EPOCH FROM (NOW() - m.last_heartbeat_at)) / 60) " +
 		op + " " + b.Bind(15))
 	return nil
 }
 
 // moving: a comparison between two columns.
 func movingEmitter(b *sluice.Builder, _ sluice.Operator, v sluice.Value) error {
-	b.WriteSQL("(inv.desired_group_id <> inv.current_group_id) = " +
+	b.WriteSQL("(m.desired_group_id <> m.current_group_id) = " +
 		b.Bind(b.Dialect().BoolArg(v.Bool())))
 	return nil
 }
 
-func fleetCompiler(t *testing.T) *sluice.Compiler {
+func derivedCompiler(t *testing.T) *sluice.Compiler {
 	t.Helper()
 	schema := sluice.Schema{
-		Name: "fleet",
+		Name: "inventory",
 		Fields: []sluice.Field{
 			{Name: "operation", Type: sluice.TypeString, Emit: operationEmitter},
 			{Name: "blocked", Type: sluice.TypeString, Emit: blockedEmitter},
@@ -100,7 +100,7 @@ func fleetCompiler(t *testing.T) *sluice.Compiler {
 }
 
 func TestCustomEmittersExpressTheOriginPredicates(t *testing.T) {
-	c := fleetCompiler(t)
+	c := derivedCompiler(t)
 	for _, tc := range []struct {
 		input string
 		sql   string
@@ -138,17 +138,17 @@ func TestCustomEmittersExpressTheOriginPredicates(t *testing.T) {
 		},
 		{
 			`online = true`,
-			"FLOOR(EXTRACT(EPOCH FROM (NOW() - inv.last_heartbeat_at)) / 60) <= $1",
+			"FLOOR(EXTRACT(EPOCH FROM (NOW() - m.last_heartbeat_at)) / 60) <= $1",
 			[]any{15},
 		},
 		{
 			`online = false`,
-			"FLOOR(EXTRACT(EPOCH FROM (NOW() - inv.last_heartbeat_at)) / 60) > $1",
+			"FLOOR(EXTRACT(EPOCH FROM (NOW() - m.last_heartbeat_at)) / 60) > $1",
 			[]any{15},
 		},
 		{
 			`moving = true`,
-			"(inv.desired_group_id <> inv.current_group_id) = $1",
+			"(m.desired_group_id <> m.current_group_id) = $1",
 			[]any{true},
 		},
 	} {
@@ -173,7 +173,7 @@ func TestCustomEmittersExpressTheOriginPredicates(t *testing.T) {
 }
 
 func TestCustomEmittersShareThePlaceholderSequence(t *testing.T) {
-	c := fleetCompiler(t)
+	c := derivedCompiler(t)
 	res, err := c.Compile(`name = "web-1" AND operation = "reboot" AND moving = true`)
 	if err != nil {
 		t.Fatal(err)
@@ -181,7 +181,7 @@ func TestCustomEmittersShareThePlaceholderSequence(t *testing.T) {
 	var (
 		name      = "LOWER(inv.name) = $1"
 		operation = operationHead + "LOWER(op.name) = $2 AND " + inProgress + ")"
-		moving    = "(inv.desired_group_id <> inv.current_group_id) = $3"
+		moving    = "(m.desired_group_id <> m.current_group_id) = $3"
 	)
 	want := "((" + name + " AND " + operation + ") AND " + moving + ")"
 	if res.SQL != want {
@@ -195,7 +195,7 @@ func TestCustomEmittersShareThePlaceholderSequence(t *testing.T) {
 func TestCustomEmittersCannotLeakInputText(t *testing.T) {
 	// Builder exposes no method that writes a value into SQL text, so invariant
 	// 1 holds even for host-authored emitters.
-	c := fleetCompiler(t)
+	c := derivedCompiler(t)
 	const marker = "Zq7Marker"
 	for _, in := range []string{
 		`operation = "` + marker + `"`,

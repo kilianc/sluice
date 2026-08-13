@@ -3,7 +3,7 @@
   "op": "compile",
   "schema": "machines",
   "dialect": "postgres",
-  "description": "Regression corpus. Every input here compiled to executable SQL under the origin implementation, the implementation Sluice generalizes, because unrecognized tokens were copied verbatim into the WHERE clause. Each must now produce a diagnostic and no SQL. Run this file first when a port believes it is finished. The related wildcard bug — name ~ \"%\" matching every row — is asserted in 004 rather than here, since it is a compile-output regression rather than a rejection.",
+  "description": "Regression corpus. Every input here compiled to executable SQL in the implementation Sluice generalizes, because unrecognized tokens were copied verbatim into the WHERE clause. Each must now produce a diagnostic and no SQL. Run this file first when a port believes it is finished. The related wildcard bug — name ~ \"%\" matching every row — is asserted in 004 rather than here, since it is a compile-output regression rather than a rejection.",
   "cases": [
     {
       "name": "bare tautology",

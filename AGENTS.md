@@ -216,7 +216,7 @@ Note what `value` excludes: a bare `IDENT` is **not** a value. `phase = in-use`
 is `unexpected_token`, not a clever guess. This single rule is what removes the
 injection surface that motivated the project.
 
-`NOT` is an addition over the original the origin implementation grammar. Implicit conjunction
+`NOT` is an addition over the origin grammar. Implicit conjunction
 (`a = "1" b = "2"` meaning AND) is **not** supported and is `unexpected_token`.
 
 ---
