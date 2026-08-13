@@ -81,8 +81,14 @@ is welcome.
 
 ## Versioning
 
-The Go module and `@sluice/core` share a version and are released together, so
-that "Sluice 0.2.1" identifies one language rather than two.
+The Go module and `@sluice/core` share a version and are cut from the same
+commit, so that "Sluice 0.2.1" identifies one language rather than two.
+
+Publishing can lag on one side — a registry outage, an account you cannot get
+into. When it does, the package is published later **from the same tag and at
+the same version** rather than skipping ahead to the next one. The number keeps
+identifying a commit; only the moment it appeared in a registry moves. v0.1.0
+went out this way: the Go module on the tag, npm afterwards.
 
 While the version is `0.x`, **the minor bumps for a breaking change** and the
 patch for everything else. Once it reaches `1.0`, ordinary semver.
@@ -104,7 +110,8 @@ new opt-in schema option.
 
 ## Releasing
 
-Releases are cut by a maintainer, in this order:
+Releases are cut by a maintainer, in this order. Steps 3 and 4 need not happen on
+the same day, but they must describe the same commit:
 
 ```bash
 # 1. everything green, including both adapters
@@ -134,3 +141,8 @@ rm /tmp/sluice-npmrc
 
 pkg.go.dev needs nothing beyond the pushed tag; it indexes from the public
 repository on first request for the version.
+
+Step 3 is the irreversible one. proxy.golang.org caches a tag permanently the
+first time anything fetches it, so a tag cannot be moved or taken back — check
+`make test && make conformance` before it, not after. Nothing else in this list
+has that property.
