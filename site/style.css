@@ -356,6 +356,17 @@ section .sub {
   min-width: 0;
 }
 
+/* Monaco clamps the completion list to the viewport width but anchors it at the
+   caret, so on a narrow screen caret + list runs off the right edge and the
+   descriptions are unreadable. It is a fixed-position widget, so pinning it to
+   the left gutter keeps the whole list on screen wherever the caret sits. */
+@media (max-width: 34rem) {
+  .monaco-editor .suggest-widget {
+    left: 1rem !important;
+    max-width: calc(100vw - 2rem) !important;
+  }
+}
+
 .searchbar .clear {
   flex: none;
   display: grid;
@@ -425,7 +436,9 @@ section .sub {
 .results {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  overflow: hidden auto;
+  /* Both axes scroll: the rows are nowrap, so on a narrow screen the last
+     columns sit outside the box and clipping them puts them out of reach. */
+  overflow: auto;
   max-height: 21rem;
 }
 
@@ -704,6 +717,35 @@ tbody tr:last-child td {
   margin-left: auto;
   color: var(--fg-faint);
   font-size: 0.9rem;
+}
+
+/* One row per line does not survive a narrow screen: the name column and the
+   arrow take theirs first and the description wraps in what is left, which
+   turns every row into a paragraph. Put the description on its own line and
+   keep the arrow next to the name it belongs to. */
+@media (max-width: 34rem) {
+  .doclist a {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "name arrow"
+      "what what";
+    gap: 0.15rem 0.75rem;
+  }
+
+  .doclist .name {
+    grid-area: name;
+    min-width: 0;
+  }
+
+  .doclist .what {
+    grid-area: what;
+  }
+
+  .doclist .arrow {
+    grid-area: arrow;
+    margin-left: 0;
+  }
 }
 
 /* ---------------------------------------------------------------- footer */
