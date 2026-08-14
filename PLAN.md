@@ -290,6 +290,12 @@ Exit: v0.2.0.
 **M5 — breadth.** SQLite and MySQL dialects, `@sluice/codemirror`, deferred
 grammar features from §2.7 as demand justifies.
 
+**M6 — the site.** A landing page carrying the README's argument and a demo that
+is not a recording: the same `@sluice/core` and `@sluice/monaco` this repository
+ships, compiling in the page and executing against a Postgres compiled into it.
+`make site` assembles and serves exactly what deploys. Exit: someone who has
+never heard of this can understand it and try it without installing anything.
+
 Ordering note: migrating the internal caller deliberately follows the v0.1.0 tag
 rather than preceding it. Migrating before publishing would let host-specific
 convenience leak back into the library, which is the failure mode this whole

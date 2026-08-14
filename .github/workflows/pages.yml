@@ -1,0 +1,44 @@
+# Publishes the site at site/ to GitHub Pages.
+#
+# Deliberately manual for now: Pages on a private repository needs a paid plan,
+# so a push trigger would fail on every commit until the repository is public or
+# the plan allows it. Add
+#
+#   push:
+#     branches: [main]
+#
+# below once Pages is enabled, and this becomes automatic.
+name: Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The same target `make site` serves locally, so what deploys is what was
+      # previewed: the page plus the packages it imports, side by side.
+      - name: Assemble
+        run: make site-build
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -3,13 +3,14 @@ IMAGE := sluice-tools
 # and the test runner only ever read.
 NODE := docker run --rm -i -u "$$(id -u):$$(id -g)" -v "$$PWD:/work:ro" -w /work $(IMAGE) node
 
-.PHONY: help test test-go test-js race conformance conformance-js tools fmt vet playground
+.PHONY: help test test-go test-js race conformance conformance-js tools fmt vet playground site site-build
 
 help:
 	@echo "test            everything: Go, then the JS package in the tools image"
 	@echo "test-go         go test ./..."
 	@echo "test-js         node --test for every JS package, in the tools image"
 	@echo "playground      serve the PGlite playground at http://localhost:8901"
+	@echo "site            assemble and serve the website at http://localhost:8903"
 	@echo "race            go test -race ./..."
 	@echo "conformance     run the corpus against every adapter that can run here"
 	@echo "conformance-js  run the corpus against the JS adapter, in the tools image"
@@ -49,3 +50,21 @@ tools:
 playground:
 	@echo "http://localhost:8901/playground/"
 	@python3 -m http.server 8901 --bind 127.0.0.1
+
+# The site is static and buildless; "building" it is copying the packages in
+# beside it, so that the same relative imports work locally and on Pages. The
+# workflow runs this exact target, so what you preview is what deploys.
+SITE_OUT := .site
+
+site-build:
+	rm -rf $(SITE_OUT)
+	mkdir -p $(SITE_OUT)
+	cp site/index.html site/style.css site/app.js $(SITE_OUT)/
+	cp -R js $(SITE_OUT)/js
+	cp -R docs $(SITE_OUT)/docs
+	cp -R conformance $(SITE_OUT)/conformance
+	cp AGENTS.md README.md PLAN.md CONTRIBUTING.md LICENSE $(SITE_OUT)/
+
+site: site-build
+	@echo "http://localhost:8903/"
+	@python3 -m http.server 8903 --directory $(SITE_OUT) --bind 127.0.0.1

@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sluice — a filter language that compiles to SQL</title>
+    <meta
+      name="description"
+      content="Declare your fields once. Get a parser, a SQL compiler that binds every value as a parameter, and an autocompleting editor — in the browser, on the server, or both."
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' rx='3' transform='rotate(45 16 16)' fill='%231f6feb'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <a class="brand" href="#top">Sluice</a>
+        <nav>
+          <a href="#demo">Demo</a>
+          <a href="#how">How</a>
+          <a href="#docs">Docs</a>
+          <a href="https://github.com/kilianc/sluice">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <div class="hero wrap">
+        <h1>Filter bars, done once.</h1>
+        <p class="lede">
+          Every internal tool grows a filter bar, and every filter bar grows a bad
+          little query language held together with string concatenation. Sluice is
+          that language, written properly: a real parser, a real AST, every value
+          bound as a parameter, and typed autocomplete from the same declaration
+          the compiler uses.
+        </p>
+
+        <code class="query">
+          <span class="f">state</span> = <span class="s">"shared"</span>
+          <span class="k">AND</span> <span class="f">team</span> ~
+          <span class="s">"design"</span> <span class="k">AND NOT</span>
+          <span class="f">active</span> = <span class="k">true</span>
+        </code>
+
+        <div class="cta">
+          <a class="button primary" href="#demo">Try it below</a>
+          <a class="button" href="https://github.com/kilianc/sluice">Source</a>
+          <a class="button" href="./docs/language.md">The language</a>
+        </div>
+      </div>
+
+      <section id="demo">
+        <div class="wrap">
+          <h2>Compiled here, run here</h2>
+          <p class="sub">
+            This page holds a Postgres. The filter below is compiled in your
+            browser by <code>@sluice/core</code>, then executed against
+            <a href="https://pglite.dev">PGlite</a> a few centimetres away — no
+            server is involved, and nothing you type leaves the page. Switch the
+            dialect to see what a dialect is allowed to change.
+          </p>
+
+          <div class="demo">
+            <div class="demo-bar">
+              <span class="label">Filter</span>
+              <div class="tabs" id="dialects" role="tablist"></div>
+            </div>
+            <div id="editor"></div>
+            <div class="chips" id="examples"></div>
+
+            <div class="out">
+              <div class="pane">
+                <h3>Compiled SQL</h3>
+                <pre id="sql">starting…</pre>
+              </div>
+              <div class="pane">
+                <h3>Bound arguments</h3>
+                <pre id="args">[]</pre>
+                <p class="note" id="note"></p>
+              </div>
+            </div>
+
+            <div class="rows"><table id="rows"></table></div>
+          </div>
+
+          <p class="note">
+            Two of those examples are worth clicking for what they do
+            <em>not</em> do. <code>name ~ "%"</code> looks for a literal percent
+            sign and finds nothing — the implementation Sluice generalizes
+            matched every row. <code>1=1</code> is a syntax error rather than
+            SQL.
+          </p>
+        </div>
+      </section>
+
+      <section id="how">
+        <div class="wrap">
+          <h2>One declaration, three consumers</h2>
+          <p class="sub">
+            The schema is the whole configuration. The compiler, the editor and
+            the browser all read the same field list, which is why the
+            autocomplete can never disagree with what will compile.
+          </p>
+
+          <div class="split">
+            <div>
+              <p class="filelabel">schema.json</p>
+              <pre class="block"><code>{
+  <span class="s">"name"</span>: <span class="s">"documents"</span>,
+  <span class="s">"fields"</span>: [
+    { <span class="s">"name"</span>: <span class="s">"state"</span>,
+      <span class="s">"type"</span>: <span class="s">"enum"</span>,
+      <span class="s">"column"</span>: <span class="s">"doc.state"</span>,
+      <span class="s">"values"</span>: [<span class="s">"shared"</span>, <span class="s">"restricted"</span>] },
+    { <span class="s">"name"</span>: <span class="s">"team"</span>,
+      <span class="s">"type"</span>: <span class="s">"enum"</span>,
+      <span class="s">"column"</span>: <span class="s">"grp.name"</span>,
+      <span class="s">"dynamic"</span>: <span class="k">true</span> }
+  ]
+}</code></pre>
+            </div>
+            <div>
+              <p class="filelabel">server</p>
+              <pre class="block"><code><span class="k">c</span>, _ := sluice.New(schema, postgres.Dialect)
+res, err := c.Compile(input)
+
+res.SQL     <span class="c">// a WHERE fragment</span>
+res.Args    <span class="c">// every value, bound</span>
+res.Fields  <span class="c">// so you can prune joins</span>
+
+<span class="c">// and the reduced schema for the browser,
+// with your column SQL removed</span>
+c.PublicSchema(dynamic)</code></pre>
+              <p class="filelabel" style="margin-top: 1rem">browser</p>
+              <pre class="block"><code><span class="k">const</span> lang = createLanguage(schema)
+register(monaco, { language: lang })
+
+<span class="c">// completions, diagnostics, highlighting</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>What it guarantees</h2>
+          <p class="sub">
+            These are the reasons the project exists, and every one of them is
+            asserted by a language-agnostic corpus that both implementations run
+            on every commit.
+          </p>
+
+          <div class="cards">
+            <div class="card">
+              <h3>No text reaches SQL</h3>
+              <p>
+                Values leave the compiler only through the argument list. The
+                only way to emit one is <code>Bind</code>, which returns a
+                placeholder — there is no method that writes a value into SQL
+                text, including for your own custom emitters.
+              </p>
+            </div>
+            <div class="card">
+              <h3>No passthrough</h3>
+              <p>
+                A token the schema does not recognize is a diagnostic with a
+                source position, never something copied into the output. A bare
+                word is not a value: <code>state = shared</code> is a syntax
+                error rather than a clever guess.
+              </p>
+            </div>
+            <div class="card">
+              <h3>No drift</h3>
+              <p>
+                Go and JavaScript are driven through one JSON Lines protocol
+                against one corpus. Adding a language means adding one registry
+                entry; changing behaviour without a case is not allowed.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Install</h2>
+          <p class="sub">
+            Zero runtime dependencies on the JavaScript side, and the Go module
+            depends on nothing outside the standard library.
+          </p>
+          <div class="split">
+            <pre class="block"><code><span class="c"># the compiler</span>
+go get github.com/kilianc/sluice</code></pre>
+            <pre class="block"><code><span class="c"># the language, and an editor binding</span>
+npm install @sluice/core
+npm install @sluice/monaco   <span class="c"># or @sluice/codemirror</span></code></pre>
+          </div>
+          <p class="note">
+            Four dialects ship today: Postgres, DuckDB, SQLite and MySQL. Sluice
+            compiles a predicate and an <code>ORDER BY</code> — joins,
+            projections and aggregation stay your application's business, and
+            that constraint is what keeps it small enough to depend on.
+          </p>
+        </div>
+      </section>
+
+      <section id="docs">
+        <div class="wrap">
+          <h2>Documentation</h2>
+          <p class="sub">
+            <a href="./AGENTS.md">AGENTS.md</a> is the normative specification,
+            written so that an implementer can port Sluice to another language
+            without reading the reference source.
+          </p>
+          <div class="doclist">
+            <a href="./docs/language.md"
+              ><span class="name">language</span
+              ><span class="what">the query language, in full</span></a
+            >
+            <a href="./docs/schema.md"
+              ><span class="name">schema</span
+              ><span class="what"
+                >declaring fields, dynamic enums, custom emitters</span
+              ></a
+            >
+            <a href="./docs/dialects.md"
+              ><span class="name">dialects</span
+              ><span class="what">what a dialect controls, and writing one</span></a
+            >
+            <a href="./docs/editor.md"
+              ><span class="name">editor</span
+              ><span class="what">completions and diagnostics in a filter bar</span></a
+            >
+            <a href="./docs/security.md"
+              ><span class="name">security</span
+              ><span class="what"
+                >the invariants, and the three ways to deploy client-side
+                compilation</span
+              ></a
+            >
+            <a href="./docs/porting.md"
+              ><span class="name">porting</span
+              ><span class="what">implementing Sluice in another language</span></a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>MIT licensed.</span>
+        <nav>
+          <a href="https://github.com/kilianc/sluice">GitHub</a>
+          <a href="./AGENTS.md">Spec</a>
+          <a href="./conformance/">Conformance</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <script>
+      // Monaco ships an AMD bundle; everything else here is ESM. Load it first
+      // and hand the namespace to the module below through a promise.
+      require.config({
+        paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" },
+      });
+      window.monacoReady = new Promise((resolve) =>
+        require(["vs/editor/editor.main"], () => resolve(window.monaco)),
+      );
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

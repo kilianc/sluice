@@ -101,9 +101,10 @@ import { register } from '@sluice/monaco'
 register(monaco, { language: lang })
 ```
 
-There is a [playground](playground/) that does exactly this and executes the
-result against a Postgres compiled into the page, so nothing leaves the browser.
-Run it with `make playground`.
+The [site](site/) is that code running for real: it compiles in the page and
+executes against a Postgres compiled into the page, so nothing you type leaves
+the browser. `make site` assembles and serves it; `make playground` is the same
+demo without the prose around it.
 
 ## Why
 
@@ -135,7 +136,7 @@ That constraint is what keeps it small enough to be worth depending on.
 | [schema.md](docs/schema.md) | declaring fields, dynamic enums, custom emitters |
 | [dialects.md](docs/dialects.md) | what a dialect controls, and writing one |
 | [editor.md](docs/editor.md) | completions and diagnostics in a filter bar |
-| [playground/](playground/) | compile and run a query with no server at all |
+| [site/](site/) | the landing page and the live demo — `make site` |
 | [security.md](docs/security.md) | the invariants, and the three ways to deploy client-side compilation |
 | [porting.md](docs/porting.md) | implementing Sluice in another language |
 
