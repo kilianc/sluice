@@ -125,3 +125,25 @@ func mustString(t *testing.T, v any) string {
 	}
 	return string(b)
 }
+
+func TestFlagsAfterTheQueryAreRejected(t *testing.T) {
+	// Go's flag package would otherwise fold these into the query string and
+	// report a lexical error from the middle of it.
+	_, _, err := newFlags("compile", []string{
+		"-schema", "s.json", `state = "shared"`, "-dynamic", `{"team":["a"]}`,
+	})
+	if err == nil {
+		t.Fatal("flags after the query were accepted")
+	}
+	if !strings.Contains(err.Error(), "must come before the query") {
+		t.Errorf("error = %v, want it to name the problem", err)
+	}
+
+	// The ordinary form still works, and so does a query that merely contains
+	// a dash somewhere harmless.
+	if _, rest, err := newFlags("compile", []string{
+		"-schema", "s.json", "-dialect", "duckdb", `team ~ "design-a"`,
+	}); err != nil || len(rest) != 1 {
+		t.Errorf("rest = %v, err = %v", rest, err)
+	}
+}

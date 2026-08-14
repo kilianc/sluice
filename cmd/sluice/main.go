@@ -75,7 +75,29 @@ func newFlags(name string, args []string) (*commonFlags, []string, error) {
 	if err := f.set.Parse(args); err != nil {
 		return nil, nil, err
 	}
-	return f, f.set.Args(), nil
+	rest := f.set.Args()
+	if err := checkFlagOrder(name, rest); err != nil {
+		return nil, nil, err
+	}
+	return f, rest, nil
+}
+
+// checkFlagOrder rejects positional arguments that look like flags.
+//
+// Go's flag package stops parsing at the first non-flag, so
+// `sluice compile -schema s 'state = "shared"' -dynamic '{}'` folds the trailing
+// flags into the query and reports a lexical error from the middle of it — a
+// baffling message for what is really an argument-order mistake. No valid query
+// begins with a dash, so this can be said plainly.
+func checkFlagOrder(name string, rest []string) error {
+	for _, arg := range rest {
+		if len(arg) > 1 && strings.HasPrefix(arg, "-") {
+			return fmt.Errorf(
+				"%s: flags must come before the query, but %s appears after it\n"+
+					"       try: sluice %s [flags] QUERY", name, arg, name)
+		}
+	}
+	return nil
 }
 
 func (f *commonFlags) compiler() (*sluice.Compiler, error) {
