@@ -35,6 +35,9 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  /* The header is sticky, so an anchor landing at the top of the viewport
+     lands behind it. Clear the header, plus a little air. */
+  scroll-padding-top: 5.25rem;
 }
 
 body {
@@ -156,6 +159,15 @@ nav a:hover {
   color: var(--fg);
 }
 
+/* Five links do not fit beside the brand on a phone, and the header is a fixed
+   height, so they widen the page rather than wrap. The jumps to sections of
+   this page are the ones to drop: on a narrow screen the page is one scroll. */
+@media (max-width: 34rem) {
+  .section-link {
+    display: none;
+  }
+}
+
 /* ------------------------------------------------------------------ hero */
 
 .hero {
@@ -168,6 +180,11 @@ nav a:hover {
 .badge {
   display: inline-flex;
   align-items: center;
+  /* The four dialect names are one line until they cannot be: below about a
+     320px screen the pill is wider than the hero and widens the page. */
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
   gap: 0.5rem;
   padding: 0.3rem 0.75rem;
   border: 1px solid var(--line);
@@ -647,6 +664,12 @@ tbody tr:last-child td {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   overflow: hidden;
+}
+
+/* A group heading that follows a list needs room above it, or the label sits
+   on the box it labels rather than on the one below. */
+.doclist + .eyebrow {
+  margin-top: 2.75rem;
 }
 
 .doclist a {

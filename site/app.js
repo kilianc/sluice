@@ -78,6 +78,7 @@ register(monaco, { language })
 
 const css = getComputedStyle(document.body)
 const hex = (name) => css.getPropertyValue(name).trim().replace('#', '')
+const color = (name) => css.getPropertyValue(name).trim()
 
 // A theme with a transparent background, so the editor disappears into the
 // search bar and only the text is Monaco's.
@@ -100,10 +101,17 @@ monaco.editor.defineTheme('sluice', {
     // draws a blue box inside the search bar. The bar shows focus itself.
     focusBorder: '#00000000',
     'editor.lineHighlightBorder': '#00000000',
-    'editorCursor.foreground': css.getPropertyValue('--fg').trim(),
-    'editorSuggestWidget.background': css.getPropertyValue('--bg').trim(),
-    'editorSuggestWidget.border': css.getPropertyValue('--line').trim(),
-    'editorSuggestWidget.selectedBackground': css.getPropertyValue('--bg-muted').trim(),
+    'editorCursor.foreground': color('--fg'),
+    'editorSuggestWidget.background': color('--bg'),
+    'editorSuggestWidget.border': color('--line'),
+    // The selected row needs its whole set of colours, not just a background:
+    // vs leaves the rest white, for a selection meant to be a solid blue.
+    'editorSuggestWidget.selectedBackground': color('--line'),
+    'editorSuggestWidget.selectedForeground': color('--fg'),
+    'editorSuggestWidget.selectedIconForeground': color('--fg-muted'),
+    'editorSuggestWidget.foreground': color('--fg'),
+    'editorSuggestWidget.highlightForeground': color('--accent'),
+    'editorSuggestWidget.focusHighlightForeground': color('--accent'),
   },
 })
 
