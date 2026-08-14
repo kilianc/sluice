@@ -20,6 +20,7 @@
         <a class="brand" href="#top"><span class="mark"></span>Sluice</a>
         <nav>
           <a href="#demo">Demo</a>
+          <a href="#virtual">Virtual columns</a>
           <a href="#how">How it works</a>
           <a href="#docs">Docs</a>
           <a href="https://github.com/kilianc/sluice">GitHub</a>
@@ -109,6 +110,70 @@
             sign and finds nothing — the implementation Sluice generalizes
             matched every row. <code>1=1</code> is a syntax error rather than
             SQL.
+          </p>
+        </div>
+      </section>
+
+
+      <section id="virtual">
+        <div class="wrap">
+          <p class="eyebrow">Virtual columns</p>
+          <h2>Your schema changes. Your query language doesn't have to.</h2>
+          <p class="sub">
+            A field's <code>column</code> is any SQL expression you write — a
+            joined column, a subquery, a <code>CASE</code>, a JSONB path.
+            Someone types <code>owner</code>; you decide that means a join to
+            your users table. Split that table later, denormalize it, rename it:
+            the filters people saved keep working, because they never named your
+            tables in the first place.
+          </p>
+
+          <div class="split">
+            <div class="codecard">
+              <div class="filename">schema.json — five fields, five shapes of SQL</div>
+              <pre><code>{ <span class="s">"name"</span>: <span class="s">"owner"</span>,    <span class="s">"type"</span>: <span class="s">"string"</span>,
+  <span class="s">"column"</span>: <span class="s">"usr.display_name"</span> }          <span class="c">// a join</span>
+
+{ <span class="s">"name"</span>: <span class="s">"overdue"</span>,  <span class="s">"type"</span>: <span class="s">"boolean"</span>,
+  <span class="s">"column"</span>: <span class="s">"(doc.due_at &lt; now())"</span> }      <span class="c">// an expression</span>
+
+{ <span class="s">"name"</span>: <span class="s">"comments"</span>, <span class="s">"type"</span>: <span class="s">"number"</span>,
+  <span class="s">"column"</span>: <span class="s">"(SELECT count(*) FROM comment c</span>
+            <span class="s">WHERE c.doc_id = doc.id)"</span> }   <span class="c">// a subquery</span>
+
+{ <span class="s">"name"</span>: <span class="s">"health"</span>,   <span class="s">"type"</span>: <span class="s">"enum"</span>,
+  <span class="s">"values"</span>: [<span class="s">"ok"</span>, <span class="s">"warn"</span>, <span class="s">"bad"</span>],
+  <span class="s">"column"</span>: <span class="s">"CASE WHEN doc.failures = 0</span>
+            <span class="s">THEN 'ok' … END"</span> }           <span class="c">// a CASE</span>
+
+{ <span class="s">"name"</span>: <span class="s">"label"</span>,    <span class="s">"type"</span>: <span class="s">"enum"</span>,
+  <span class="s">"dynamic"</span>: <span class="f">true</span>,
+  <span class="s">"column"</span>: <span class="s">"lbl.name"</span> }                  <span class="c">// a join, values from the db</span></code></pre>
+            </div>
+
+            <div class="stack">
+              <div class="codecard">
+                <div class="filename">someone types</div>
+                <pre><code><span class="f">owner</span> ~ <span class="s">"kim"</span> <span class="k">AND</span> <span class="f">overdue</span> = <span class="k">true</span> <span class="k">AND</span> <span class="f">comments</span> &gt; <span class="k">5</span></code></pre>
+              </div>
+              <div class="codecard">
+                <div class="filename">what runs</div>
+                <pre><code>((LOWER(usr.display_name) LIKE $1 ESCAPE <span class="s">'\'</span>
+  AND (doc.due_at &lt; now()) = $2)
+  AND (SELECT count(*) FROM comment c
+       WHERE c.doc_id = doc.id) &gt; $3)
+
+<span class="c">args</span> [ <span class="s">"%kim%"</span>, <span class="k">true</span>, <span class="k">5</span> ]
+<span class="c">fields</span> [ <span class="s">"owner"</span>, <span class="s">"overdue"</span>, <span class="s">"comments"</span> ]</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <p class="note">
+            That last line is how you prune joins: the compiler tells you which
+            fields the query touched, so you add the users join and skip the
+            labels one. Nothing in the language knows a table exists — which is
+            also why a saved filter cannot break when your database moves.
           </p>
         </div>
       </section>
