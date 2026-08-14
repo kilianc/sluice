@@ -19,14 +19,16 @@ import (
 // anything for humans goes to stderr.
 
 type request struct {
-	ID      string              `json:"id"`
-	Op      string              `json:"op"`
-	Schema  json.RawMessage     `json:"schema"`
-	Dialect string              `json:"dialect"`
-	Dynamic map[string][]string `json:"dynamic"`
-	Input   string              `json:"input"`
-	Cursor  int                 `json:"cursor"`
-	AST     *ast.Node           `json:"ast"`
+	ID        string              `json:"id"`
+	Op        string              `json:"op"`
+	Schema    json.RawMessage     `json:"schema"`
+	Dialect   string              `json:"dialect"`
+	Dynamic   map[string][]string `json:"dynamic"`
+	Input     string              `json:"input"`
+	Cursor    int                 `json:"cursor"`
+	Sort      string              `json:"sort"`
+	Direction string              `json:"direction"`
+	AST       *ast.Node           `json:"ast"`
 }
 
 type response struct {
@@ -38,6 +40,7 @@ type response struct {
 	Args        []any               `json:"args,omitempty"`
 	Fields      []string            `json:"fields,omitempty"`
 	Suggestions []sluice.Suggestion `json:"suggestions,omitempty"`
+	OrderBy     *string             `json:"orderBy,omitempty"`
 	Diagnostics []sluice.Diagnostic `json:"diagnostics,omitempty"`
 	Schema      *sluice.Schema      `json:"schema,omitempty"`
 	Error       string              `json:"error,omitempty"`
@@ -87,6 +90,9 @@ func marshalResponse(r response) map[string]any {
 	}
 	if r.Suggestions != nil {
 		out["suggestions"] = r.Suggestions
+	}
+	if len(r.Diagnostics) == 0 && r.OrderBy != nil {
+		out["orderBy"] = *r.OrderBy
 	}
 	if r.Diagnostics != nil {
 		out["diagnostics"] = r.Diagnostics
@@ -162,6 +168,24 @@ func (a *adapter) handle(req request) response {
 			out = []sluice.Suggestion{}
 		}
 		resp.Suggestions = out
+
+	case "orderby":
+		dir := sluice.Asc
+		if req.Direction == "desc" {
+			dir = sluice.Desc
+		}
+		resp.Diagnostics = []sluice.Diagnostic{}
+		clause, oerr := c.OrderBy(req.Sort, dir)
+		if oerr != nil {
+			var e *sluice.Error
+			if errors.As(oerr, &e) {
+				resp.Diagnostics = []sluice.Diagnostic{e.Diagnostic}
+			} else {
+				resp.Error = oerr.Error()
+			}
+			break
+		}
+		resp.OrderBy = &clause
 
 	case "schema":
 		pub := c.PublicSchema(req.Dynamic)

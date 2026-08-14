@@ -71,6 +71,18 @@ function handle(request) {
       return { diagnostics: languageFor(request).validate(request.input ?? '').diagnostics }
     case 'suggest':
       return { suggestions: languageFor(request).suggest(request.input ?? '', request.cursor ?? 0) }
+    case 'orderby': {
+      const lang = languageFor(request)
+      try {
+        return {
+          orderBy: lang.orderBy(request.sort ?? '', request.direction ?? 'asc', dialectFor(request)),
+          diagnostics: [],
+        }
+      } catch (err) {
+        if (!err.diagnostic) throw err
+        return { diagnostics: [err.diagnostic] }
+      }
+    }
     case 'schema':
       return { schema: languageFor(request).publicSchema(request.dynamic ?? {}) }
     default:
@@ -93,6 +105,9 @@ function respond(id, result) {
     out.fields = result.fields
   }
   if (result.suggestions) out.suggestions = result.suggestions
+  if ((result.diagnostics ?? []).length === 0 && result.orderBy !== undefined) {
+    out.orderBy = result.orderBy
+  }
   if (result.diagnostics) out.diagnostics = result.diagnostics
   if (result.schema) out.schema = result.schema
   if (result.error) out.error = result.error

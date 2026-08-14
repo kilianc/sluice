@@ -7,10 +7,12 @@ import {
   decodeNode,
   duckdb,
   lex,
+  mysql,
   likePattern,
   parseDuration,
   postgres,
   publicSchema,
+  sqlite,
 } from '../src/index.js'
 
 // The corpus covers everything the Go implementation and this one must agree
@@ -68,6 +70,38 @@ test('a dialect changes only what it is allowed to change', () => {
     "(doc.id = ?::UUID AND date_diff('second', rev.created_at, current_timestamp) > ?)",
   )
   assert.deepEqual(pg.args, duck.args)
+})
+
+test('a dialect with no boolean binds integers instead', () => {
+  // The SQL text is identical; only the argument list moves. Comparing emitted
+  // strings would never catch this.
+  const lang = documents()
+  for (const dialect of [sqlite, mysql]) {
+    const res = lang.compile('active = true', dialect)
+    assert.equal(res.sql, 'doc.active = ?')
+    assert.deepEqual(res.args, [1], dialect.name)
+  }
+  assert.deepEqual(lang.compile('active = true', postgres).args, [true])
+})
+
+test('mysql escapes its own escape clause', () => {
+  // A backslash escapes inside a MySQL string literal, so ESCAPE '\\' is what
+  // denotes the single character every other dialect writes plainly. The bound
+  // pattern is a parameter and is unaffected.
+  const lang = documents()
+  const my = lang.compile('name ~ "100%"', mysql)
+  const pg = lang.compile('name ~ "100%"', postgres)
+  assert.ok(my.sql.endsWith("ESCAPE '\\\\'"), my.sql)
+  assert.ok(pg.sql.endsWith("ESCAPE '\\'"), pg.sql)
+  assert.deepEqual(my.args, pg.args)
+})
+
+test('mysql is the only dialect that reshapes ORDER BY', () => {
+  const lang = documents()
+  assert.equal(lang.orderBy('name', 'asc', postgres), 'ORDER BY doc.name ASC NULLS LAST')
+  assert.equal(lang.orderBy('name', 'asc', sqlite), 'ORDER BY doc.name ASC NULLS LAST')
+  assert.equal(lang.orderBy('name', 'desc', duckdb), 'ORDER BY doc.name DESC NULLS LAST')
+  assert.equal(lang.orderBy('name', 'asc', mysql), 'ORDER BY doc.name IS NULL, doc.name ASC')
 })
 
 test('no input text reaches the SQL', () => {

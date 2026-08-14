@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "op": "orderby",
+  "schema": "documents",
+  "description": "ORDER BY is compiled from a schema-declared key, never from input. The clause is the one place a dialect changes more than spelling: MySQL has no NULLS LAST and sorts on an IS NULL expression first instead. An unknown key is a diagnostic and no clause.",
+  "cases": [
+    {
+      "name": "ascending, nulls last",
+      "dialect": "postgres",
+      "sort": "name",
+      "direction": "asc",
+      "orderBy": "ORDER BY doc.name ASC NULLS LAST"
+    },
+    {
+      "name": "descending",
+      "dialect": "postgres",
+      "sort": "name",
+      "direction": "desc",
+      "orderBy": "ORDER BY doc.name DESC NULLS LAST"
+    },
+    {
+      "name": "the key selects a host-supplied expression, not a column name",
+      "dialect": "postgres",
+      "sort": "state",
+      "direction": "asc",
+      "orderBy": "ORDER BY doc.state ASC NULLS LAST"
+    },
+    {
+      "name": "duckdb spells it the same way",
+      "dialect": "duckdb",
+      "sort": "name",
+      "direction": "desc",
+      "orderBy": "ORDER BY doc.name DESC NULLS LAST"
+    },
+    {
+      "name": "sqlite spells it the same way",
+      "dialect": "sqlite",
+      "sort": "name",
+      "direction": "asc",
+      "orderBy": "ORDER BY doc.name ASC NULLS LAST"
+    },
+    {
+      "name": "mysql has no NULLS LAST and sorts on IS NULL first",
+      "dialect": "mysql",
+      "sort": "name",
+      "direction": "asc",
+      "orderBy": "ORDER BY doc.name IS NULL, doc.name ASC"
+    },
+    {
+      "name": "mysql, descending",
+      "dialect": "mysql",
+      "sort": "name",
+      "direction": "desc",
+      "orderBy": "ORDER BY doc.name IS NULL, doc.name DESC"
+    },
+    {
+      "name": "an unknown key is a diagnostic and no clause",
+      "dialect": "postgres",
+      "sort": "bogus",
+      "direction": "asc",
+      "diagnostics": [{ "code": "unknown_sort_key", "span": [0, 0] }]
+    },
+    {
+      "name": "an empty key is not an error; the host simply is not sorting",
+      "dialect": "postgres",
+      "sort": "",
+      "direction": "asc",
+      "orderBy": ""
+    }
+  ]
+}

@@ -1,22 +1,56 @@
 {
-  "$comment": "Registry of implementations the conformance runner drives. Adding a language means adding an entry here; nothing else in the suite is language-aware. See AGENTS.md §11 for the protocol.",
+  "$comment": "Registry of implementations the conformance runner drives. Adding a language means adding an entry here; nothing else in the suite is language-aware. See AGENTS.md \u00a711 for the protocol.",
   "adapters": [
     {
       "name": "go",
-      "command": ["go", "run", "./cmd/sluice", "conformance-adapter"],
-      "dialects": ["postgres", "duckdb"],
-      "ops": ["lex", "parse", "compile", "validate", "suggest", "schema"]
+      "command": [
+        "go",
+        "run",
+        "./cmd/sluice",
+        "conformance-adapter"
+      ],
+      "dialects": [
+        "postgres",
+        "duckdb",
+        "sqlite",
+        "mysql"
+      ],
+      "ops": [
+        "lex",
+        "parse",
+        "compile",
+        "validate",
+        "suggest",
+        "orderby",
+        "schema"
+      ]
     },
     {
       "name": "js",
-      "command": ["node", "js/packages/core/bin/conformance-adapter.mjs"],
+      "command": [
+        "node",
+        "js/packages/core/bin/conformance-adapter.mjs"
+      ],
       "container": {
         "image": "sluice-tools",
         "build": "make tools",
         "$comment": "Used when the host has no working JavaScript runtime. The runner mounts the repository read-only and runs the same command inside the image."
       },
-      "dialects": ["postgres", "duckdb"],
-      "ops": ["lex", "parse", "compile", "validate", "suggest", "schema"]
+      "dialects": [
+        "postgres",
+        "duckdb",
+        "sqlite",
+        "mysql"
+      ],
+      "ops": [
+        "lex",
+        "parse",
+        "compile",
+        "validate",
+        "suggest",
+        "orderby",
+        "schema"
+      ]
     }
   ]
 }

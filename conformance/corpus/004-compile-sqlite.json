@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "op": "compile",
+  "schema": "documents",
+  "dialect": "sqlite",
+  "description": "SQLite has neither a boolean nor a uuid type, so booleans bind as 1 and 0 and nothing is cast. Everything else — structure, parenthesization, argument order, case folding, LIKE escaping — is dialect-independent and identical to postgres.",
+  "cases": [
+    {
+      "name": "positional placeholders render as ?",
+      "input": "state = \"shared\"",
+      "sql": "LOWER(doc.state) = ?",
+      "args": ["shared"],
+      "fields": ["state"]
+    },
+    {
+      "name": "contains, with an explicit ESCAPE clause",
+      "input": "name ~ \"Cell\"",
+      "sql": "LOWER(doc.name) LIKE ? ESCAPE '\\'",
+      "args": ["%cell%"],
+      "fields": ["name"]
+    },
+    {
+      "name": "a boolean binds as an integer",
+      "input": "active = true",
+      "sql": "doc.active = ?",
+      "args": [1],
+      "fields": ["active"]
+    },
+    {
+      "name": "a uuid is not cast, only lowercased in the argument",
+      "input": "id = \"3F2504E0-4F89-11D3-9A0C-0305E82C3301\"",
+      "sql": "doc.id = ?",
+      "args": ["3f2504e0-4f89-11d3-9a0c-0305e82c3301"],
+      "fields": ["id"]
+    },
+    {
+      "name": "duration uses strftime but still binds seconds",
+      "input": "edited > \"2 days\"",
+      "sql": "(strftime('%s','now') - strftime('%s', rev.created_at)) > ?",
+      "args": [172800],
+      "fields": ["edited"]
+    },
+    {
+      "name": "precedence and parenthesization are dialect-independent",
+      "input": "state = \"shared\" OR active = true AND words > 8",
+      "sql": "(LOWER(doc.state) = ? OR (doc.active = ? AND doc.words > ?))",
+      "args": ["shared", 1, 8],
+      "fields": ["state", "active", "words"]
+    },
+    {
+      "name": "empty input compiles to empty",
+      "input": "",
+      "sql": "",
+      "args": [],
+      "fields": []
+    }
+  ]
+}

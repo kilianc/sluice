@@ -26,7 +26,7 @@ var corpusFilter = flag.String("corpus", "", "restrict the run to corpus files w
 // in a case is either an expectation or documentation.
 var requestKeys = map[string]bool{
 	"op": true, "schema": true, "dialect": true, "dynamic": true,
-	"input": true, "cursor": true, "ast": true,
+	"input": true, "cursor": true, "ast": true, "sort": true, "direction": true,
 }
 
 // ignoredKeys are documentation. "was" records what the input produced under

@@ -9,8 +9,14 @@ so the same query produces the same shape everywhere and only the spelling moves
 |---|---|---|---|---|
 | `postgres` | `$1`, `$2`, … | `::uuid` | `::timestamptz` | shipped |
 | `duckdb` | `?` | `::UUID` | `::TIMESTAMPTZ` | shipped |
-| `sqlite` | `?` | *(none)* | *(none)* | planned |
-| `mysql` | `?` | *(none)* | *(none)* | planned |
+| `sqlite` | `?` | *(none)* | *(none)* | shipped |
+| `mysql` | `?` | *(none)* | *(none)* | shipped |
+
+SQLite and MySQL have no boolean type, so `true` binds as `1` — the argument
+list differs between dialects even where the SQL text does not. MySQL also
+spells the `LIKE` escape clause `ESCAPE '\\'`, because a backslash is itself an
+escape character inside a MySQL string literal; the bound pattern is identical,
+since it is a parameter rather than literal text.
 
 ```go
 import "github.com/kilianc/sluice/dialect/postgres"
@@ -71,11 +77,13 @@ if slices.Contains(res.Fields, "team") {
 }
 ```
 
-## Sorting
+## Sorting, and the one real divergence
 
-`ORDER BY <expr> ASC|DESC NULLS LAST`, from a schema-named key. MySQL has no
-`NULLS LAST`, so its dialect emits `ORDER BY <expr> IS NULL, <expr> ASC|DESC`
-instead — the one place a dialect changes more than spelling.
+`ORDER BY <expr> ASC|DESC NULLS LAST`, from a schema-named key — except in
+MySQL, which has no `NULLS LAST` and emits `ORDER BY <expr> IS NULL, <expr> ASC`
+instead. That is the only place a dialect changes the shape of the output rather
+than its spelling, which is why it has its own conformance op and corpus file
+(`007-orderby.json`) rather than living in each implementation's unit tests.
 
 ## Writing one
 

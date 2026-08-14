@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	"github.com/kilianc/sluice"
+	"github.com/kilianc/sluice/dialect/duckdb"
+	"github.com/kilianc/sluice/dialect/mysql"
 	"github.com/kilianc/sluice/dialect/postgres"
+	"github.com/kilianc/sluice/dialect/sqlite"
 )
 
 // The four predicates in the origin implementation that are not a column
@@ -252,5 +255,60 @@ func TestCaseFoldingIsPerFieldAndAsciiOnly(t *testing.T) {
 	}
 	if res.SQL != "doc.tag = $1" || res.Args[0] != "MixedÉ" {
 		t.Errorf("unfolded field: sql = %q, args = %#v", res.SQL, res.Args)
+	}
+}
+
+// TestDialectsWithoutABooleanBindIntegers covers the two dialects whose argument
+// list differs from everyone else's, which no amount of comparing SQL strings
+// would catch.
+func TestDialectsWithoutABooleanBindIntegers(t *testing.T) {
+	for _, d := range []sluice.Dialect{sqlite.Dialect, mysql.Dialect} {
+		c := documents(t, d)
+		res, err := c.Compile(`active = true`)
+		if err != nil {
+			t.Fatalf("%s: %v", d.Name(), err)
+		}
+		if len(res.Args) != 1 || res.Args[0] != int64(1) {
+			t.Errorf("%s bound %#v, want int64(1)", d.Name(), res.Args)
+		}
+	}
+}
+
+// TestMySQLEscapesItsEscapeClause pins the one dialect whose ESCAPE clause is
+// not the literal backslash every other dialect writes.
+func TestMySQLEscapesItsEscapeClause(t *testing.T) {
+	c := documents(t, mysql.Dialect)
+	res, err := c.Compile(`name ~ "100%"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(res.SQL, `ESCAPE '\\'`) {
+		t.Errorf("sql = %s, want a doubled backslash in the escape clause", res.SQL)
+	}
+	// The argument is a parameter, so it escapes exactly as everywhere else.
+	if res.Args[0] != `%100\%%` {
+		t.Errorf("args = %#v", res.Args)
+	}
+}
+
+func TestOrderByPerDialect(t *testing.T) {
+	for _, tc := range []struct {
+		dialect sluice.Dialect
+		dir     sluice.Direction
+		want    string
+	}{
+		{postgres.Dialect, sluice.Asc, "ORDER BY doc.name ASC NULLS LAST"},
+		{duckdb.Dialect, sluice.Desc, "ORDER BY doc.name DESC NULLS LAST"},
+		{sqlite.Dialect, sluice.Asc, "ORDER BY doc.name ASC NULLS LAST"},
+		{mysql.Dialect, sluice.Asc, "ORDER BY doc.name IS NULL, doc.name ASC"},
+		{mysql.Dialect, sluice.Desc, "ORDER BY doc.name IS NULL, doc.name DESC"},
+	} {
+		got, err := documents(t, tc.dialect).OrderBy("name", tc.dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.dialect.Name(), got, tc.want)
+		}
 	}
 }

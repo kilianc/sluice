@@ -11,12 +11,16 @@ import (
 
 	"github.com/kilianc/sluice"
 	"github.com/kilianc/sluice/dialect/duckdb"
+	"github.com/kilianc/sluice/dialect/mysql"
 	"github.com/kilianc/sluice/dialect/postgres"
+	"github.com/kilianc/sluice/dialect/sqlite"
 )
 
 var dialects = map[string]sluice.Dialect{
 	"postgres": postgres.Dialect,
 	"duckdb":   duckdb.Dialect,
+	"sqlite":   sqlite.Dialect,
+	"mysql":    mysql.Dialect,
 }
 
 const usage = `usage: sluice <command> [flags] [query]
@@ -66,7 +70,7 @@ type commonFlags struct {
 func newFlags(name string, args []string) (*commonFlags, []string, error) {
 	f := &commonFlags{set: flag.NewFlagSet(name, flag.ContinueOnError)}
 	f.set.StringVar(&f.schema, "schema", "", "path to a schema JSON file")
-	f.set.StringVar(&f.dialect, "dialect", "postgres", "sql dialect: postgres or duckdb")
+	f.set.StringVar(&f.dialect, "dialect", "postgres", "sql dialect: postgres, duckdb, sqlite or mysql")
 	f.set.StringVar(&f.dynamic, "dynamic", "", `dynamic enum values, e.g. {"team":["design-a"]}`)
 	if err := f.set.Parse(args); err != nil {
 		return nil, nil, err

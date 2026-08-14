@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "op": "compile",
+  "schema": "documents",
+  "dialect": "mysql",
+  "description": "MySQL is the dialect that differs in more than spelling. A backslash is itself an escape character inside a MySQL string literal, so the ESCAPE clause carries a doubled one; and MySQL has no NULLS LAST, which 004-orderby covers. Booleans bind as 1 and 0, nothing is cast, and the argument list is unaffected by any of it.",
+  "cases": [
+    {
+      "name": "positional placeholders render as ?",
+      "input": "state = \"shared\"",
+      "sql": "LOWER(doc.state) = ?",
+      "args": ["shared"],
+      "fields": ["state"]
+    },
+    {
+      "name": "the ESCAPE clause carries a doubled backslash",
+      "input": "name ~ \"Cell\"",
+      "sql": "LOWER(doc.name) LIKE ? ESCAPE '\\\\'",
+      "args": ["%cell%"],
+      "fields": ["name"]
+    },
+    {
+      "name": "the bound pattern is a parameter, so it escapes exactly as elsewhere",
+      "input": "name ~ \"100%_x\"",
+      "sql": "LOWER(doc.name) LIKE ? ESCAPE '\\\\'",
+      "args": ["%100\\%\\_x%"],
+      "fields": ["name"]
+    },
+    {
+      "name": "a boolean binds as an integer",
+      "input": "active = true",
+      "sql": "doc.active = ?",
+      "args": [1],
+      "fields": ["active"]
+    },
+    {
+      "name": "a uuid is not cast, only lowercased in the argument",
+      "input": "id = \"3F2504E0-4F89-11D3-9A0C-0305E82C3301\"",
+      "sql": "doc.id = ?",
+      "args": ["3f2504e0-4f89-11d3-9a0c-0305e82c3301"],
+      "fields": ["id"]
+    },
+    {
+      "name": "duration uses TIMESTAMPDIFF but still binds seconds",
+      "input": "edited > \"2 days\"",
+      "sql": "TIMESTAMPDIFF(SECOND, rev.created_at, NOW()) > ?",
+      "args": [172800],
+      "fields": ["edited"]
+    },
+    {
+      "name": "precedence and parenthesization are dialect-independent",
+      "input": "state = \"shared\" OR active = true AND words > 8",
+      "sql": "(LOWER(doc.state) = ? OR (doc.active = ? AND doc.words > ?))",
+      "args": ["shared", 1, 8],
+      "fields": ["state", "active", "words"]
+    },
+    {
+      "name": "empty input compiles to empty",
+      "input": "",
+      "sql": "",
+      "args": [],
+      "fields": []
+    }
+  ]
+}

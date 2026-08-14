@@ -31,4 +31,33 @@ export const duckdb = {
   orderBy: nullsLast,
 }
 
-export const dialects = { postgres, duckdb }
+// SQLite and MySQL have neither a boolean nor a uuid type, so booleans bind as
+// 1 and 0 and nothing is cast.
+const intBool = (b) => (b ? 1 : 0)
+
+export const sqlite = {
+  name: 'sqlite',
+  placeholder: () => '?',
+  uuidCast: '',
+  timestampCast: '',
+  boolArg: intBool,
+  likeEscapeClause: " ESCAPE '\\'",
+  ageSeconds: (column) => `(strftime('%s','now') - strftime('%s', ${column}))`,
+  orderBy: nullsLast,
+}
+
+export const mysql = {
+  name: 'mysql',
+  placeholder: () => '?',
+  uuidCast: '',
+  timestampCast: '',
+  boolArg: intBool,
+  // A backslash is itself an escape character inside a MySQL string literal, so
+  // ESCAPE '\' is an unterminated string there. The bound pattern is unaffected.
+  likeEscapeClause: " ESCAPE '\\\\'",
+  ageSeconds: (column) => `TIMESTAMPDIFF(SECOND, ${column}, NOW())`,
+  // MySQL has no NULLS LAST; sorting on "IS NULL" first is the workaround.
+  orderBy: (sql, desc) => `ORDER BY ${sql} IS NULL, ${sql} ${desc ? 'DESC' : 'ASC'}`,
+}
+
+export const dialects = { postgres, duckdb, sqlite, mysql }

@@ -341,6 +341,11 @@ that order, and the emitted SQL carries an explicit `ESCAPE '\'`. Without this,
 `name ~ "%"` matches every row — a real bug in the implementation this project
 generalizes.
 
+MySQL is the exception in spelling only: a backslash is itself an escape
+character inside a MySQL string literal, so the clause there **MUST** be
+`ESCAPE '\\'`, which denotes the same single character. The bound pattern is
+unaffected — it is a parameter, never literal text.
+
 `<durationForm>` measures age relative to now, so `edited > "2 days"` means "older
 than two days":
 - postgres: `EXTRACT(EPOCH FROM (NOW() - C)) > P`
@@ -356,6 +361,9 @@ than two days":
 | duckdb | `?` | `::UUID` | `::TIMESTAMPTZ` | `true`/`false` |
 | sqlite | `?` | *(none)* | *(none)* | `1`/`0` |
 | mysql | `?` | *(none)* | *(none)* | `1`/`0` |
+
+A dialect with no boolean type binds `1` and `0` rather than emitting them, so
+the argument list differs between dialects even where the SQL does not.
 
 ### 8.4 Custom emitters
 
@@ -384,6 +392,10 @@ an absent predicate means; the compiler **MUST NOT** invent `1=1`.
 `ORDER BY <sql> ASC|DESC NULLS LAST`, where `<sql>` is host-supplied. An unknown
 key is `unknown_sort_key`. MySQL, which lacks `NULLS LAST`, emits
 `ORDER BY <sql> IS NULL, <sql> ASC|DESC`. Sort keys are never derived from input.
+
+This is the one place a dialect changes more than spelling, so it is exercised
+through its own protocol op rather than left to each implementation's unit
+tests: see `conformance/corpus/007-orderby.json`.
 
 ---
 
@@ -468,7 +480,8 @@ stdin closes.
 **Request:**
 
 ```json
-{ "id": "case-1", "op": "lex" | "parse" | "compile" | "validate" | "suggest" | "schema",
+{ "id": "case-1",
+  "op": "lex" | "parse" | "compile" | "validate" | "suggest" | "orderby" | "schema",
   "schema": { … } | "documents",
   "dialect": "postgres",
   "dynamic": { "team": ["DESIGN-A"] },
@@ -479,7 +492,8 @@ stdin closes.
 
 `schema` is either an inline schema object or the basename of a file in
 `conformance/schemas/`. `ast` is present instead of `input` when the case exercises
-AST decoding (§6).
+AST decoding (§6). `sort` and `direction` accompany `orderby`, which answers with
+`orderBy` and never with `sql`.
 
 **Response:**
 
@@ -488,6 +502,7 @@ AST decoding (§6).
   "tokens": [ { "kind": "IDENT", "value": "state", "span": [0, 5] } ],
   "ast": { … },
   "sql": "…", "args": [ … ], "fields": [ … ],
+  "orderBy": "ORDER BY doc.name ASC NULLS LAST",
   "suggestions": [ { "text": "shared", "kind": "value", "replaceSpan": [8, 8] } ],
   "diagnostics": [ { "code": "unknown_field", "span": [0, 4] } ] }
 ```
