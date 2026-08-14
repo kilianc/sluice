@@ -3,24 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sluice — a filter language that compiles to SQL</title>
+    <title>Sluice — the last search bar you'll ever need</title>
     <meta
       name="description"
-      content="Declare your fields once. Get a parser, a SQL compiler that binds every value as a parameter, and an autocompleting editor — in the browser, on the server, or both."
+      content="The last search bar you'll ever need, with a query language of your own. Declare your fields once: Sluice gives you the parser, the SQL compiler that binds every value as a parameter, and the autocomplete — on the server and in the browser."
     />
     <link rel="stylesheet" href="./style.css" />
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' rx='3' transform='rotate(45 16 16)' fill='%231f6feb'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2309090b'/%3E%3Cpath d='M11 10v8h9' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
     />
   </head>
   <body>
     <header>
       <div class="wrap">
-        <a class="brand" href="#top">Sluice</a>
+        <a class="brand" href="#top"><span class="mark"></span>Sluice</a>
         <nav>
           <a href="#demo">Demo</a>
-          <a href="#how">How</a>
+          <a href="#how">How it works</a>
           <a href="#docs">Docs</a>
           <a href="https://github.com/kilianc/sluice">GitHub</a>
         </nav>
@@ -28,15 +28,24 @@
     </header>
 
     <main id="top">
-      <div class="hero wrap">
-        <h1>Filter bars, done once.</h1>
+      <div class="hero">
+        <span class="badge"
+          ><span class="dot"></span>Four dialects · <b>Postgres</b>
+          <b>DuckDB</b> <b>SQLite</b> <b>MySQL</b></span
+        >
+
+        <h1>The last search bar you'll ever need.</h1>
         <p class="lede">
-          Every internal tool grows a filter bar, and every filter bar grows a bad
-          little query language held together with string concatenation. Sluice is
-          that language, written properly: a real parser, a real AST, every value
-          bound as a parameter, and typed autocomplete from the same declaration
-          the compiler uses.
+          With a query language of your own. Declare your fields once and Sluice
+          gives you the rest: a real parser, a SQL compiler that binds every
+          value as a parameter, and a bar that completes itself — on the server
+          and in the browser, from the same declaration.
         </p>
+
+        <div class="cta">
+          <a class="button primary" href="#demo">Try it live</a>
+          <a class="button" href="https://github.com/kilianc/sluice">GitHub</a>
+        </div>
 
         <code class="query">
           <span class="f">state</span> = <span class="s">"shared"</span>
@@ -44,36 +53,48 @@
           <span class="s">"design"</span> <span class="k">AND NOT</span>
           <span class="f">active</span> = <span class="k">true</span>
         </code>
-
-        <div class="cta">
-          <a class="button primary" href="#demo">Try it below</a>
-          <a class="button" href="https://github.com/kilianc/sluice">Source</a>
-          <a class="button" href="./docs/language.md">The language</a>
-        </div>
       </div>
 
       <section id="demo">
         <div class="wrap">
-          <h2>Compiled here, run here</h2>
+          <p class="eyebrow">Live, in this page</p>
+          <h2>A filter bar, and what it compiles to</h2>
           <p class="sub">
-            This page holds a Postgres. The filter below is compiled in your
-            browser by <code>@sluice/core</code>, then executed against
-            <a href="https://pglite.dev">PGlite</a> a few centimetres away — no
-            server is involved, and nothing you type leaves the page. Switch the
-            dialect to see what a dialect is allowed to change.
+            Type below. It completes from the schema, underlines what will not
+            compile, and the results are real — the query is compiled by
+            <code>@sluice/core</code> in your browser and executed against a
+            Postgres compiled into the page by
+            <a href="https://pglite.dev">PGlite</a>. No server, and nothing you
+            type leaves the page.
           </p>
 
-          <div class="demo">
-            <div class="demo-bar">
-              <span class="label">Filter</span>
+          <div class="searchbar" id="searchbar">
+            <svg class="icon" viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+              <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            <div id="editor"></div>
+            <button class="clear" id="clear" type="button" aria-label="Clear filter" hidden>
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M6 6l8 8M14 6l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </button>
+            <span class="count" id="count"></span>
+          </div>
+
+          <div class="chips" id="examples"></div>
+
+          <div class="results">
+            <table id="rows"></table>
+          </div>
+
+          <div class="compiled">
+            <div class="compiled-bar">
+              <span class="label">Compiled SQL</span>
               <div class="tabs" id="dialects" role="tablist"></div>
             </div>
-            <div id="editor"></div>
-            <div class="chips" id="examples"></div>
-
             <div class="out">
               <div class="pane">
-                <h3>Compiled SQL</h3>
                 <pre id="sql">starting…</pre>
               </div>
               <div class="pane">
@@ -82,8 +103,6 @@
                 <p class="note" id="note"></p>
               </div>
             </div>
-
-            <div class="rows"><table id="rows"></table></div>
           </div>
 
           <p class="note">
@@ -98,17 +117,18 @@
 
       <section id="how">
         <div class="wrap">
+          <p class="eyebrow">How it works</p>
           <h2>One declaration, three consumers</h2>
           <p class="sub">
-            The schema is the whole configuration. The compiler, the editor and
-            the browser all read the same field list, which is why the
+            The schema is the whole configuration. The compiler, the filter bar
+            and the browser all read the same field list, which is why the
             autocomplete can never disagree with what will compile.
           </p>
 
           <div class="split">
-            <div>
-              <p class="filelabel">schema.json</p>
-              <pre class="block"><code>{
+            <div class="codecard">
+              <div class="filename">schema.json</div>
+              <pre><code>{
   <span class="s">"name"</span>: <span class="s">"documents"</span>,
   <span class="s">"fields"</span>: [
     { <span class="s">"name"</span>: <span class="s">"state"</span>,
@@ -118,27 +138,32 @@
     { <span class="s">"name"</span>: <span class="s">"team"</span>,
       <span class="s">"type"</span>: <span class="s">"enum"</span>,
       <span class="s">"column"</span>: <span class="s">"grp.name"</span>,
-      <span class="s">"dynamic"</span>: <span class="k">true</span> }
+      <span class="s">"dynamic"</span>: <span class="f">true</span> }
   ]
 }</code></pre>
             </div>
-            <div>
-              <p class="filelabel">server</p>
-              <pre class="block"><code><span class="k">c</span>, _ := sluice.New(schema, postgres.Dialect)
+
+            <div class="stack">
+              <div class="codecard">
+                <div class="filename">server</div>
+                <pre><code>c, _ := sluice.New(schema, postgres.Dialect)
 res, err := c.Compile(input)
 
 res.SQL     <span class="c">// a WHERE fragment</span>
 res.Args    <span class="c">// every value, bound</span>
 res.Fields  <span class="c">// so you can prune joins</span>
 
-<span class="c">// and the reduced schema for the browser,
+<span class="c">// the reduced schema for the browser,
 // with your column SQL removed</span>
 c.PublicSchema(dynamic)</code></pre>
-              <p class="filelabel" style="margin-top: 1rem">browser</p>
-              <pre class="block"><code><span class="k">const</span> lang = createLanguage(schema)
+              </div>
+              <div class="codecard">
+                <div class="filename">browser</div>
+                <pre><code>const lang = createLanguage(schema)
 register(monaco, { language: lang })
 
 <span class="c">// completions, diagnostics, highlighting</span></code></pre>
+              </div>
             </div>
           </div>
         </div>
@@ -146,7 +171,8 @@ register(monaco, { language: lang })
 
       <section>
         <div class="wrap">
-          <h2>What it guarantees</h2>
+          <p class="eyebrow">Guarantees</p>
+          <h2>What it will not do</h2>
           <p class="sub">
             These are the reasons the project exists, and every one of them is
             asserted by a language-agnostic corpus that both implementations run
@@ -186,65 +212,71 @@ register(monaco, { language: lang })
 
       <section>
         <div class="wrap">
-          <h2>Install</h2>
+          <p class="eyebrow">Install</p>
+          <h2>Two packages, no dependencies</h2>
           <p class="sub">
-            Zero runtime dependencies on the JavaScript side, and the Go module
-            depends on nothing outside the standard library.
+            <code>@sluice/core</code> has zero runtime dependencies and no build
+            step; the Go module depends on nothing outside the standard library.
           </p>
           <div class="split">
-            <pre class="block"><code><span class="c"># the compiler</span>
-go get github.com/kilianc/sluice</code></pre>
-            <pre class="block"><code><span class="c"># the language, and an editor binding</span>
-npm install @sluice/core
-npm install @sluice/monaco   <span class="c"># or @sluice/codemirror</span></code></pre>
+            <div class="codecard">
+              <div class="filename">go</div>
+              <pre><code>go get github.com/kilianc/sluice</code></pre>
+            </div>
+            <div class="codecard">
+              <div class="filename">javascript</div>
+              <pre><code>npm install @sluice/core
+npm install @sluice/monaco <span class="c"># or @sluice/codemirror</span></code></pre>
+            </div>
           </div>
           <p class="note">
-            Four dialects ship today: Postgres, DuckDB, SQLite and MySQL. Sluice
-            compiles a predicate and an <code>ORDER BY</code> — joins,
-            projections and aggregation stay your application's business, and
-            that constraint is what keeps it small enough to depend on.
+            Sluice compiles a predicate and an <code>ORDER BY</code>. Joins,
+            projections and aggregation stay your application's business — that
+            constraint is what keeps it small enough to depend on.
           </p>
         </div>
       </section>
 
       <section id="docs">
         <div class="wrap">
-          <h2>Documentation</h2>
+          <p class="eyebrow">Documentation</p>
+          <h2>Written to be ported</h2>
           <p class="sub">
             <a href="./AGENTS.md">AGENTS.md</a> is the normative specification,
             written so that an implementer can port Sluice to another language
             without reading the reference source.
           </p>
           <div class="doclist">
-            <a href="./docs/language.md"
-              ><span class="name">language</span
-              ><span class="what">the query language, in full</span></a
-            >
-            <a href="./docs/schema.md"
-              ><span class="name">schema</span
-              ><span class="what"
-                >declaring fields, dynamic enums, custom emitters</span
-              ></a
-            >
-            <a href="./docs/dialects.md"
-              ><span class="name">dialects</span
-              ><span class="what">what a dialect controls, and writing one</span></a
-            >
-            <a href="./docs/editor.md"
-              ><span class="name">editor</span
-              ><span class="what">completions and diagnostics in a filter bar</span></a
-            >
-            <a href="./docs/security.md"
-              ><span class="name">security</span
-              ><span class="what"
-                >the invariants, and the three ways to deploy client-side
-                compilation</span
-              ></a
-            >
-            <a href="./docs/porting.md"
-              ><span class="name">porting</span
-              ><span class="what">implementing Sluice in another language</span></a
-            >
+            <a href="./docs/language.md">
+              <span class="name">language</span>
+              <span class="what">the query language, in full</span>
+              <span class="arrow">→</span>
+            </a>
+            <a href="./docs/schema.md">
+              <span class="name">schema</span>
+              <span class="what">declaring fields, dynamic enums, custom emitters</span>
+              <span class="arrow">→</span>
+            </a>
+            <a href="./docs/dialects.md">
+              <span class="name">dialects</span>
+              <span class="what">what a dialect controls, and writing one</span>
+              <span class="arrow">→</span>
+            </a>
+            <a href="./docs/editor.md">
+              <span class="name">editor</span>
+              <span class="what">completions and diagnostics in a filter bar</span>
+              <span class="arrow">→</span>
+            </a>
+            <a href="./docs/security.md">
+              <span class="name">security</span>
+              <span class="what">the invariants, and compiling in the browser</span>
+              <span class="arrow">→</span>
+            </a>
+            <a href="./docs/porting.md">
+              <span class="name">porting</span>
+              <span class="what">implementing Sluice in another language</span>
+              <span class="arrow">→</span>
+            </a>
           </div>
         </div>
       </section>

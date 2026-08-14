@@ -69,30 +69,94 @@ let dialect = RUNNABLE
 const db = new PGlite()
 await db.exec(seed)
 
+const TOTAL = (await db.query('SELECT count(*)::int AS n FROM document')).rows[0].n
 const teams = await db.query('SELECT DISTINCT team FROM document ORDER BY team')
 const language = createLanguage(schema, { dynamic: { team: teams.rows.map((r) => r.team) } })
 
 const monaco = await window.monacoReady
 register(monaco, { language })
 
+const css = getComputedStyle(document.body)
+const hex = (name) => css.getPropertyValue(name).trim().replace('#', '')
+
+// A theme with a transparent background, so the editor disappears into the
+// search bar and only the text is Monaco's.
+monaco.editor.defineTheme('sluice', {
+  base: 'vs',
+  inherit: true,
+  rules: [
+    { token: 'type.identifier', foreground: hex('--syntax-field') },
+    { token: 'string', foreground: hex('--syntax-string') },
+    { token: 'string.quote', foreground: hex('--syntax-string') },
+    { token: 'string.escape', foreground: hex('--syntax-string') },
+    { token: 'keyword', foreground: hex('--fg-faint') },
+    { token: 'operator', foreground: hex('--fg-muted') },
+    { token: 'number', foreground: hex('--fg') },
+    { token: 'invalid', foreground: hex('--bad') },
+  ],
+  colors: {
+    'editor.background': '#00000000',
+    // Monaco outlines its own container in the theme's focus colour, which
+    // draws a blue box inside the search bar. The bar shows focus itself.
+    focusBorder: '#00000000',
+    'editor.lineHighlightBorder': '#00000000',
+    'editorCursor.foreground': css.getPropertyValue('--fg').trim(),
+    'editorSuggestWidget.background': css.getPropertyValue('--bg').trim(),
+    'editorSuggestWidget.border': css.getPropertyValue('--line').trim(),
+    'editorSuggestWidget.selectedBackground': css.getPropertyValue('--bg-muted').trim(),
+  },
+})
+
 const editor = monaco.editor.create($('editor'), {
   value: examples[0],
   language: 'sluice',
-  theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'vs-dark' : 'vs',
+  theme: 'sluice',
   automaticLayout: true,
   fontSize: 14,
-  fontFamily: getComputedStyle(document.body).getPropertyValue('--mono'),
+  lineHeight: 24,
+  fontFamily: css.getPropertyValue('--mono'),
+  // Everything that makes an editor look like an editor, off.
   lineNumbers: 'off',
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
+  scrollbar: { vertical: 'hidden', horizontal: 'hidden', handleMouseWheel: false },
   overviewRulerLanes: 0,
+  overviewRulerBorder: false,
+  hideCursorInOverviewRuler: true,
   folding: false,
+  glyphMargin: false,
+  lineDecorationsWidth: 0,
+  lineNumbersMinChars: 0,
   renderLineHighlight: 'none',
-  padding: { top: 14, bottom: 14 },
-  wordWrap: 'on',
+  occurrencesHighlight: 'off',
+  contextmenu: false,
+  wordWrap: 'off',
+  padding: { top: 0, bottom: 0 },
   quickSuggestions: { other: true, strings: true },
   suggestOnTriggerCharacters: true,
+  fixedOverflowWidgets: true,
 })
+
+// A search bar is one line. Monaco has no single-line mode, so paste and Enter
+// are flattened rather than fought with — the suggest widget still takes Enter
+// for itself when it is open.
+editor.onDidChangeModelContent(() => {
+  const value = editor.getValue()
+  if (value.includes('\n')) editor.setValue(value.replace(/\s*\n\s*/g, ' '))
+})
+
+const bar = $('searchbar')
+editor.onDidFocusEditorText(() => bar.classList.add('focused'))
+editor.onDidBlurEditorText(() => bar.classList.remove('focused'))
+bar.addEventListener('mousedown', (e) => {
+  // Clicking the padding of the bar should focus the field, as an input would.
+  if (e.target === bar) editor.focus()
+})
+
+$('clear').onclick = () => {
+  editor.setValue('')
+  editor.focus()
+}
 
 for (const name of ORDER) {
   const button = document.createElement('button')
@@ -122,38 +186,59 @@ for (const text of examples) {
 async function run() {
   const input = editor.getValue()
 
-  let compiled
+  $('clear').hidden = input === ''
+
+  let shown
   try {
-    compiled = language.compile(input, dialects[dialect])
+    shown = language.compile(input, dialects[dialect])
   } catch (err) {
-    // Compile throws the first diagnostic and produces no SQL. The editor is
-    // already underlining it; this pane is where someone is looking.
+    // Compile throws the first diagnostic and produces no SQL. The bar is
+    // already underlining it; say it in words too, where someone is looking.
     const d = err.diagnostic
     $('sql').className = 'error'
     $('sql').textContent = d ? `${d.code} at ${d.span[0]}..${d.span[1]}\n${d.message}` : String(err)
     $('args').textContent = '[]'
     $('note').textContent = 'No SQL is produced for input that does not compile.'
-    $('rows').innerHTML = ''
+    setCount(d ? d.code.replace(/_/g, ' ') : 'error', true)
     return
   }
 
   $('sql').className = ''
-  const where = compiled.sql ? `\nWHERE ${compiled.sql}` : ''
+  const where = shown.sql ? `\nWHERE ${shown.sql}` : ''
   const order = language.orderBy('name', 'asc', dialects[dialect])
   const sql = `SELECT doc.name, doc.state, doc.active, doc.words, doc.team\nFROM document doc${where}\n${order}`
   $('sql').textContent = sql
-  $('args').textContent = JSON.stringify(compiled.args, null, 1).replace(/\n\s*/g, ' ')
+  $('args').textContent = JSON.stringify(shown.args, null, 1).replace(/\n\s*/g, ' ')
+  $('note').textContent =
+    dialect === RUNNABLE
+      ? shown.args.length
+        ? 'Every value above is a bound parameter, never text in the SQL.'
+        : ''
+      : `Compiled for ${dialect}. The rows are executed by the Postgres in this page.`
 
-  if (dialect !== RUNNABLE) {
-    $('note').textContent = `Compiled for ${dialect}. The database in this page is Postgres, so the rows below stay on the postgres compilation.`
-    return
-  }
-  $('note').textContent = compiled.args.length
-    ? 'Every value above is a bound parameter, never text in the SQL.'
-    : ''
-
-  const result = await db.query(sql, compiled.args)
+  // The results always reflect the query; only the pane above follows the
+  // dialect tabs, since the database in the page is Postgres.
+  const runnable =
+    dialect === RUNNABLE ? { sql, args: shown.args } : executableFor(input, shown.args)
+  const result = await db.query(runnable.sql, runnable.args)
   renderRows(result)
+  setCount(`${result.rows.length} of ${TOTAL}`, false)
+}
+
+function executableFor(input, args) {
+  const pg = language.compile(input, dialects[RUNNABLE])
+  const where = pg.sql ? `\nWHERE ${pg.sql}` : ''
+  const order = language.orderBy('name', 'asc', dialects[RUNNABLE])
+  return {
+    sql: `SELECT doc.name, doc.state, doc.active, doc.words, doc.team\nFROM document doc${where}\n${order}`,
+    args: pg.args,
+  }
+}
+
+function setCount(text, bad) {
+  const el = $('count')
+  el.textContent = text
+  el.classList.toggle('bad', Boolean(bad))
 }
 
 function renderRows({ fields, rows }) {
@@ -180,15 +265,9 @@ function renderRows({ fields, rows }) {
   }
 }
 
-// Follow the system theme while the page is open, which Monaco does not do on
-// its own once a theme has been set.
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-  monaco.editor.setTheme(e.matches ? 'vs-dark' : 'vs')
-})
-
 editor.onDidChangeModelContent(() => {
   clearTimeout(run.timer)
-  run.timer = setTimeout(run, 150)
+  run.timer = setTimeout(run, 120)
 })
 
 await run()
