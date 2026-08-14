@@ -1,2 +1,5 @@
 # assembled by `make site-build`
 .site/
+
+# Kilian's notes, ideas and drafts. Never committed, never pushed.
+notes/
