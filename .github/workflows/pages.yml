@@ -1,16 +1,9 @@
 # Publishes the site at site/ to GitHub Pages.
-#
-# Deliberately manual for now: Pages on a private repository needs a paid plan,
-# so a push trigger would fail on every commit until the repository is public or
-# the plan allows it. Add
-#
-#   push:
-#     branches: [main]
-#
-# below once Pages is enabled, and this becomes automatic.
 name: Pages
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
