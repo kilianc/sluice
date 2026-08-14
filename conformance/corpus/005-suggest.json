@@ -1,28 +1,30 @@
 {
   "version": 1,
   "op": "suggest",
-  "schema": "machines",
+  "schema": "documents",
   "description": "Completion sets and their order at a given cursor. Field candidates order exact, then prefix, then substring, alphabetically within each group; operator and value candidates preserve declared order. Suggestions must be available for input that does not parse.",
   "cases": [
     {
       "name": "field prefix",
-      "input": "ph",
+      "input": "st",
       "cursor": 2,
-      "suggestions": [{ "text": "phase", "kind": "field", "replaceSpan": [0, 2] }]
+      "suggestions": [{ "text": "state", "kind": "field", "replaceSpan": [0, 2] }]
     },
     {
       "name": "prefix matches sort ahead of substring matches",
-      "input": "o",
+      "input": "e",
       "cursor": 1,
       "suggestions": [
-        { "text": "online", "kind": "field", "replaceSpan": [0, 1] },
-        { "text": "os_age", "kind": "field", "replaceSpan": [0, 1] },
-        { "text": "cores", "kind": "field", "replaceSpan": [0, 1] }
+        { "text": "edited", "kind": "field", "replaceSpan": [0, 1] },
+        { "text": "active", "kind": "field", "replaceSpan": [0, 1] },
+        { "text": "name", "kind": "field", "replaceSpan": [0, 1] },
+        { "text": "state", "kind": "field", "replaceSpan": [0, 1] },
+        { "text": "team", "kind": "field", "replaceSpan": [0, 1] }
       ]
     },
     {
       "name": "operators for an enum field, in declared order",
-      "input": "phase ",
+      "input": "state ",
       "cursor": 6,
       "suggestions": [
         { "text": "=", "kind": "operator", "replaceSpan": [6, 6] },
@@ -33,29 +35,29 @@
     },
     {
       "name": "a boolean field offers only equality",
-      "input": "online ",
+      "input": "active ",
       "cursor": 7,
       "suggestions": [{ "text": "=", "kind": "operator", "replaceSpan": [7, 7] }]
     },
     {
       "name": "enum values in declared order",
-      "input": "phase = ",
+      "input": "state = ",
       "cursor": 8,
       "suggestions": [
-        { "text": "in-use", "kind": "value", "replaceSpan": [8, 8] },
-        { "text": "not-in-use", "kind": "value", "replaceSpan": [8, 8] },
-        { "text": "maintenance", "kind": "value", "replaceSpan": [8, 8] }
+        { "text": "shared", "kind": "value", "replaceSpan": [8, 8] },
+        { "text": "restricted", "kind": "value", "replaceSpan": [8, 8] },
+        { "text": "unpublished", "kind": "value", "replaceSpan": [8, 8] }
       ]
     },
     {
       "name": "the opening quote is stripped from the prefix and covered by replaceSpan",
-      "input": "phase = \"not",
+      "input": "state = \"res",
       "cursor": 12,
-      "suggestions": [{ "text": "not-in-use", "kind": "value", "replaceSpan": [8, 12] }]
+      "suggestions": [{ "text": "restricted", "kind": "value", "replaceSpan": [8, 12] }]
     },
     {
       "name": "boolean values",
-      "input": "online = ",
+      "input": "active = ",
       "cursor": 9,
       "suggestions": [
         { "text": "true", "kind": "value", "replaceSpan": [9, 9] },
@@ -64,29 +66,29 @@
     },
     {
       "name": "dynamic enum values are offered when supplied",
-      "input": "rack = \"ASH1",
+      "input": "team = \"DESI",
       "cursor": 12,
-      "dynamic": { "rack": ["ASH1-R01", "ASH2-R01"] },
-      "suggestions": [{ "text": "ASH1-R01", "kind": "value", "replaceSpan": [7, 12] }]
+      "dynamic": { "team": ["DESIGN-A", "DEPLOY-A"] },
+      "suggestions": [{ "text": "DESIGN-A", "kind": "value", "replaceSpan": [7, 12] }]
     },
     {
       "name": "a dynamic field may carry the values already resolved for this request",
       "description": "This is the shape PublicSchema() emits, and it must load back unchanged — otherwise an implementation rejects its own browser-facing schema.",
       "schema": {
-        "name": "racks",
+        "name": "teams",
         "fields": [
           {
-            "name": "rack",
+            "name": "team",
             "type": "enum",
-            "column": "loc.name",
+            "column": "grp.name",
             "dynamic": true,
-            "values": ["ASH1-R01", "ASH2-R01"]
+            "values": ["DESIGN-A", "DEPLOY-A"]
           }
         ]
       },
-      "input": "rack = \"ASH1",
+      "input": "team = \"DESI",
       "cursor": 12,
-      "suggestions": [{ "text": "ASH1-R01", "kind": "value", "replaceSpan": [7, 12] }]
+      "suggestions": [{ "text": "DESIGN-A", "kind": "value", "replaceSpan": [7, 12] }]
     },
     {
       "name": "a free-typed value offers no completions",
@@ -96,7 +98,7 @@
     },
     {
       "name": "after a complete predicate, conjunctions",
-      "input": "phase = \"in-use\" ",
+      "input": "state = \"shared\" ",
       "cursor": 17,
       "suggestions": [
         { "text": "AND", "kind": "keyword", "replaceSpan": [17, 17] },
@@ -105,7 +107,7 @@
     },
     {
       "name": "a closing paren is offered only while one is open",
-      "input": "(phase = \"in-use\" ",
+      "input": "(state = \"shared\" ",
       "cursor": 18,
       "suggestions": [
         { "text": "AND", "kind": "keyword", "replaceSpan": [18, 18] },
@@ -146,9 +148,9 @@
     },
     {
       "name": "completions are available on input that does not parse",
-      "input": "phase = \"in-use\" AND onl",
+      "input": "state = \"shared\" AND act",
       "cursor": 24,
-      "suggestions": [{ "text": "online", "kind": "field", "replaceSpan": [21, 24] }]
+      "suggestions": [{ "text": "active", "kind": "field", "replaceSpan": [21, 24] }]
     }
   ]
 }

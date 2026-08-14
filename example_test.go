@@ -12,15 +12,15 @@ import (
 // and the editor. This is the example in the README, executable so the output
 // it advertises cannot drift from what the compiler emits.
 const exampleSchema = `{
-  "name": "machines",
+  "name": "documents",
   "options": { "fallbackFields": ["name"] },
   "fields": [
-    { "name": "name",  "type": "string",  "column": "inv.name",         "description": "Machine hostname" },
-    { "name": "phase", "type": "enum",    "column": "inv.phase", "values": ["in-use", "not-in-use"] },
-    { "name": "cores", "type": "number",  "column": "inv.cores" },
-    { "name": "rack",  "type": "enum",    "column": "loc.name",      "dynamic": true }
+    { "name": "name",  "type": "string",  "column": "doc.name",         "description": "Document title" },
+    { "name": "state", "type": "enum",    "column": "doc.state", "values": ["shared", "restricted"] },
+    { "name": "words", "type": "number",  "column": "doc.words" },
+    { "name": "team",  "type": "enum",    "column": "grp.name",      "dynamic": true }
   ],
-  "sorts": [ { "key": "name", "sql": "inv.name" } ]
+  "sorts": [ { "key": "name", "sql": "doc.name" } ]
 }`
 
 func Example() {
@@ -33,7 +33,7 @@ func Example() {
 		log.Fatal(err)
 	}
 
-	res, err := c.Compile(`phase = "in-use" AND rack ~ "ash1"`)
+	res, err := c.Compile(`state = "shared" AND team ~ "desi"`)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,9 +43,9 @@ func Example() {
 	fmt.Println(res.Fields)
 
 	// Output:
-	// (LOWER(inv.phase) = $1 AND LOWER(loc.name) LIKE $2 ESCAPE '\')
-	// [in-use %ash1%]
-	// [phase rack]
+	// (LOWER(doc.state) = $1 AND LOWER(grp.name) LIKE $2 ESCAPE '\')
+	// [shared %desi%]
+	// [state team]
 }
 
 // Compile returns the first diagnostic and no SQL. Validate returns all of
@@ -54,13 +54,13 @@ func ExampleCompiler_Validate() {
 	schema, _ := sluice.LoadSchema([]byte(exampleSchema))
 	c, _ := sluice.New(schema, postgres.Dialect)
 
-	for _, d := range c.Validate(`phse = "x" OR cores ~ 4`) {
+	for _, d := range c.Validate(`stat = "x" OR words ~ 4`) {
 		fmt.Printf("%d:%d %s: %s\n", d.Span.Start, d.Span.End, d.Code, d.Message)
 	}
 
 	// Output:
-	// 0:4 unknown_field: unknown field phse; did you mean phase, name?
-	// 20:21 unknown_operator_for_field: field cores does not support ~; it supports = != < <= > >=
+	// 0:4 unknown_field: unknown field stat; did you mean state, team?
+	// 20:21 unknown_operator_for_field: field words does not support ~; it supports = != < <= > >=
 }
 
 // Suggest works on input that does not parse, because that is the state an
@@ -69,7 +69,7 @@ func ExampleCompiler_Suggest() {
 	schema, _ := sluice.LoadSchema([]byte(exampleSchema))
 	c, _ := sluice.New(schema, postgres.Dialect)
 
-	for _, s := range c.Suggest(`phase = `, 8) {
+	for _, s := range c.Suggest(`state = `, 8) {
 		fmt.Printf("%s (%s)\n", s.Text, s.Kind)
 	}
 	// A prefix that matches no field is wrapped into whole predicates against
@@ -79,8 +79,8 @@ func ExampleCompiler_Suggest() {
 	}
 
 	// Output:
-	// in-use (value)
-	// not-in-use (value)
+	// shared (value)
+	// restricted (value)
 	// name = "web-1" (expression)
 	// name ~ "web-1" (expression)
 }
@@ -91,8 +91,8 @@ func ExampleCompiler_WithDynamic() {
 	schema, _ := sluice.LoadSchema([]byte(exampleSchema))
 	c, _ := sluice.New(schema, postgres.Dialect)
 
-	req := c.WithDynamic(map[string][]string{"rack": {"ash1-r01", "ash1-r02"}})
-	res, err := req.Compile(`rack = "ash1-r01"`)
+	req := c.WithDynamic(map[string][]string{"team": {"design-a", "design-b"}})
+	res, err := req.Compile(`team = "design-a"`)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -106,6 +106,6 @@ func ExampleCompiler_WithDynamic() {
 	fmt.Println(order)
 
 	// Output:
-	// LOWER(loc.name) = $1 [ash1-r01]
-	// ORDER BY inv.name DESC NULLS LAST
+	// LOWER(grp.name) = $1 [design-a]
+	// ORDER BY doc.name DESC NULLS LAST
 }

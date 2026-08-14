@@ -1,0 +1,60 @@
+{
+  "name": "documents",
+  "options": {
+    "caseInsensitive": true,
+    "maxLength": 4096,
+    "maxDepth": 16,
+    "maxPredicates": 64,
+    "fallbackFields": ["name"]
+  },
+  "fields": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "column": "doc.id",
+      "description": "Document id"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "column": "doc.name",
+      "description": "Document title"
+    },
+    {
+      "name": "state",
+      "type": "enum",
+      "column": "doc.state",
+      "values": ["shared", "restricted", "unpublished"],
+      "description": "Lifecycle state"
+    },
+    {
+      "name": "active",
+      "type": "boolean",
+      "column": "doc.active",
+      "description": "Opened in the last 15 minutes"
+    },
+    {
+      "name": "words",
+      "type": "number",
+      "column": "doc.words",
+      "description": "CPU core count"
+    },
+    {
+      "name": "edited",
+      "type": "duration",
+      "column": "rev.created_at",
+      "description": "Age of the installed OS image"
+    },
+    {
+      "name": "team",
+      "type": "enum",
+      "column": "grp.name",
+      "dynamic": true,
+      "description": "Team the document is installed in"
+    }
+  ],
+  "sorts": [
+    { "key": "name", "sql": "doc.name" },
+    { "key": "state", "sql": "doc.state" }
+  ]
+}

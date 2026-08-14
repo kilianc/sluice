@@ -61,11 +61,11 @@ line, one response per line, in order, exit 0 when stdin closes. No banner
 output; anything for humans goes to stderr.
 
 ```
-→ {"id":"1","op":"compile","schema":"machines","dialect":"postgres","input":"phase = \"in-use\""}
-← {"id":"1","sql":"LOWER(inv.phase) = $1","args":["in-use"],"fields":["phase"],"diagnostics":[]}
+→ {"id":"1","op":"compile","schema":"documents","dialect":"postgres","input":"state = \"shared\""}
+← {"id":"1","sql":"LOWER(doc.state) = $1","args":["shared"],"fields":["state"],"diagnostics":[]}
 
-→ {"id":"2","op":"suggest","schema":"machines","input":"phase = ","cursor":8}
-← {"id":"2","suggestions":[{"text":"in-use","kind":"value","replaceSpan":[8,8]}]}
+→ {"id":"2","op":"suggest","schema":"documents","input":"state = ","cursor":8}
+← {"id":"2","suggestions":[{"text":"shared","kind":"value","replaceSpan":[8,8]}]}
 ```
 
 `op` is one of `lex`, `parse`, `compile`, `validate`, `suggest`, `schema`.
@@ -99,7 +99,7 @@ container beside the command:
 ```
 
 The runner uses the host command when it works and the image when it does not,
-mounting the repository read-only. That is how the JS adapter runs on a machine
+mounting the repository read-only. That is how the JS adapter runs on a document
 with no Node installed.
 
 ## Done

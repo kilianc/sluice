@@ -46,17 +46,17 @@ func TestParseDurationRejects(t *testing.T) {
 }
 
 func TestCoercionPerType(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	for _, tc := range []struct {
 		input string
 		arg   any
 	}{
 		{`name = "Web-1"`, "web-1"},
-		{`phase = "IN-USE"`, "in-use"},
-		{`online = true`, true},
-		{`cores > 8`, float64(8)},
+		{`state = "SHARED"`, "shared"},
+		{`active = true`, true},
+		{`words > 8`, float64(8)},
 		{`id = "3F2504E0-4F89-11D3-9A0C-0305E82C3301"`, "3f2504e0-4f89-11d3-9a0c-0305e82c3301"},
-		{`os_age > "2 days"`, int64(172800)},
+		{`edited > "2 days"`, int64(172800)},
 	} {
 		res, err := c.Compile(tc.input)
 		if err != nil {
@@ -71,7 +71,7 @@ func TestCoercionPerType(t *testing.T) {
 
 func TestTimestampsAreNormalizedToUTC(t *testing.T) {
 	c, err := sluice.New(sluice.Schema{
-		Fields: []sluice.Field{{Name: "seen", Type: sluice.TypeTimestamp, Column: "inv.seen_at"}},
+		Fields: []sluice.Field{{Name: "seen", Type: sluice.TypeTimestamp, Column: "doc.seen_at"}},
 	}, postgres.Dialect)
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +80,7 @@ func TestTimestampsAreNormalizedToUTC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "inv.seen_at > $1::timestamptz"; res.SQL != want {
+	if want := "doc.seen_at > $1::timestamptz"; res.SQL != want {
 		t.Errorf("sql = %q, want %q", res.SQL, want)
 	}
 	if want := "2026-08-13T07:30:00Z"; res.Args[0] != want {
@@ -92,13 +92,13 @@ func TestTimestampsAreNormalizedToUTC(t *testing.T) {
 }
 
 func TestLiteralTypeMustMatchTheFieldType(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	for _, in := range []string{
-		`cores > "8"`,
+		`words > "8"`,
 		`name = 8`,
-		`online = "true"`,
-		`phase = true`,
-		`os_age > 2`,
+		`active = "true"`,
+		`state = true`,
+		`edited > 2`,
 	} {
 		if _, err := c.Compile(in); err == nil {
 			t.Errorf("%q was accepted, want invalid_value_for_field", in)
@@ -107,14 +107,14 @@ func TestLiteralTypeMustMatchTheFieldType(t *testing.T) {
 }
 
 func TestDynamicEnumsAreNotCachedOnTheCompiler(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	first := c.WithDynamic(map[string][]string{"rack": {"ash1-r01"}})
-	second := c.WithDynamic(map[string][]string{"rack": {"chi1-r09"}})
+	c := documents(t, postgres.Dialect)
+	first := c.WithDynamic(map[string][]string{"team": {"design-a"}})
+	second := c.WithDynamic(map[string][]string{"team": {"deploy-z"}})
 
-	if got := first.Suggest(`rack = "`, 8); len(got) != 1 || got[0].Text != "ash1-r01" {
+	if got := first.Suggest(`team = "`, 8); len(got) != 1 || got[0].Text != "design-a" {
 		t.Errorf("first view suggested %+v", got)
 	}
-	if got := second.Suggest(`rack = "`, 8); len(got) != 1 || got[0].Text != "chi1-r09" {
+	if got := second.Suggest(`team = "`, 8); len(got) != 1 || got[0].Text != "deploy-z" {
 		t.Errorf("second view suggested %+v", got)
 	}
 }

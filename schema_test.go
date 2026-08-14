@@ -16,17 +16,17 @@ func TestLoadSchemaRejectsWhatSection4Forbids(t *testing.T) {
 	}{
 		{
 			"reserved field name",
-			`{"fields":[{"name":"and","type":"string","column":"inv.a"}]}`,
+			`{"fields":[{"name":"and","type":"string","column":"doc.a"}]}`,
 			"reserved",
 		},
 		{
 			"field name outside the pattern",
-			`{"fields":[{"name":"my-field","type":"string","column":"inv.a"}]}`,
+			`{"fields":[{"name":"my-field","type":"string","column":"doc.a"}]}`,
 			"must match",
 		},
 		{
 			"unknown type",
-			`{"fields":[{"name":"a","type":"jsonb","column":"inv.a"}]}`,
+			`{"fields":[{"name":"a","type":"jsonb","column":"doc.a"}]}`,
 			"unknown type",
 		},
 		{
@@ -36,32 +36,32 @@ func TestLoadSchemaRejectsWhatSection4Forbids(t *testing.T) {
 		},
 		{
 			"duplicate field",
-			`{"fields":[{"name":"a","type":"string","column":"inv.a"},{"name":"A","type":"string","column":"inv.b"}]}`,
+			`{"fields":[{"name":"a","type":"string","column":"doc.a"},{"name":"A","type":"string","column":"doc.b"}]}`,
 			"declared twice",
 		},
 		{
 			"operator outside the type's set",
-			`{"fields":[{"name":"a","type":"boolean","column":"inv.a","operators":["~"]}]}`,
+			`{"fields":[{"name":"a","type":"boolean","column":"doc.a","operators":["~"]}]}`,
 			"which is not one of",
 		},
 		{
 			"values on a non-enum",
-			`{"fields":[{"name":"a","type":"string","column":"inv.a","values":["x"]}]}`,
+			`{"fields":[{"name":"a","type":"string","column":"doc.a","values":["x"]}]}`,
 			"cannot declare values",
 		},
 		{
 			"sort without sql",
-			`{"fields":[{"name":"a","type":"string","column":"inv.a"}],"sorts":[{"key":"a"}]}`,
+			`{"fields":[{"name":"a","type":"string","column":"doc.a"}],"sorts":[{"key":"a"}]}`,
 			"needs an sql expression",
 		},
 		{
 			"fallback field that does not exist",
-			`{"options":{"fallbackFields":["nope"]},"fields":[{"name":"a","type":"string","column":"inv.a"}]}`,
+			`{"options":{"fallbackFields":["nope"]},"fields":[{"name":"a","type":"string","column":"doc.a"}]}`,
 			"not a declared field",
 		},
 		{
 			"unknown key",
-			`{"fields":[{"name":"a","type":"string","column":"inv.a","sql":"1=1"}]}`,
+			`{"fields":[{"name":"a","type":"string","column":"doc.a","sql":"1=1"}]}`,
 			"not valid JSON",
 		},
 	} {
@@ -79,7 +79,7 @@ func TestLoadSchemaRejectsWhatSection4Forbids(t *testing.T) {
 
 func TestLoadSchemaReportsEveryProblemAtOnce(t *testing.T) {
 	_, err := sluice.LoadSchema([]byte(
-		`{"fields":[{"name":"or","type":"string","column":"inv.a"},{"name":"b","type":"nope"}]}`))
+		`{"fields":[{"name":"or","type":"string","column":"doc.a"},{"name":"b","type":"nope"}]}`))
 	var se *sluice.SchemaError
 	if !asSchemaError(err, &se) {
 		t.Fatalf("error %v is not a *sluice.SchemaError", err)
@@ -104,7 +104,7 @@ func asSchemaError(err error, target **sluice.SchemaError) bool {
 
 func TestNewRejectsAnInvalidSchema(t *testing.T) {
 	_, err := sluice.New(sluice.Schema{
-		Fields: []sluice.Field{{Name: "not", Type: sluice.TypeString, Column: "inv.a"}},
+		Fields: []sluice.Field{{Name: "not", Type: sluice.TypeString, Column: "doc.a"}},
 	}, postgres.Dialect)
 	if err == nil {
 		t.Fatal("New accepted a schema with a reserved field name")
@@ -114,7 +114,7 @@ func TestNewRejectsAnInvalidSchema(t *testing.T) {
 func TestExplicitOperatorsReplaceTheDefault(t *testing.T) {
 	c, err := sluice.New(sluice.Schema{
 		Fields: []sluice.Field{
-			{Name: "name", Type: sluice.TypeString, Column: "inv.name", Operators: []string{"="}},
+			{Name: "name", Type: sluice.TypeString, Column: "doc.name", Operators: []string{"="}},
 		},
 	}, postgres.Dialect)
 	if err != nil {
@@ -129,21 +129,21 @@ func TestExplicitOperatorsReplaceTheDefault(t *testing.T) {
 }
 
 func TestOrderByUsesSchemaExpressionsOnly(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 
 	got, err := c.OrderBy("name", sluice.Asc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "ORDER BY inv.name ASC NULLS LAST"; got != want {
+	if want := "ORDER BY doc.name ASC NULLS LAST"; got != want {
 		t.Errorf("order by = %q, want %q", got, want)
 	}
 
-	got, err = c.OrderBy("phase", sluice.Desc)
+	got, err = c.OrderBy("state", sluice.Desc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "ORDER BY inv.phase DESC NULLS LAST"; got != want {
+	if want := "ORDER BY doc.state DESC NULLS LAST"; got != want {
 		t.Errorf("order by = %q, want %q", got, want)
 	}
 
@@ -151,7 +151,7 @@ func TestOrderByUsesSchemaExpressionsOnly(t *testing.T) {
 		t.Errorf("empty key = %q, %v, want no clause and no error", got, err)
 	}
 
-	_, err = c.OrderBy("inv.name; DROP TABLE machine", sluice.Asc)
+	_, err = c.OrderBy("doc.name; DROP TABLE document", sluice.Asc)
 	if d := diagnosticOf(t, err); d.Code != "unknown_sort_key" {
 		t.Errorf("diagnostic = %+v, want unknown_sort_key", d)
 	}

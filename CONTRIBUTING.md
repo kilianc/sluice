@@ -7,7 +7,7 @@ belongs to neither. Most of what follows is about that arrangement.
 
 You need Go 1.23 or newer. You do **not** need Node: the JavaScript package runs
 in a pinned image built from [`tools/Dockerfile`](tools/Dockerfile), which is
-also how the conformance runner drives the JS adapter on a machine that has no
+also how the conformance runner drives the JS adapter on a document that has no
 JavaScript runtime — or on one whose owner would rather not hand a repository to
 one.
 

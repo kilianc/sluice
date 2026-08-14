@@ -1,7 +1,7 @@
 {
   "version": 1,
   "op": "compile",
-  "schema": "machines",
+  "schema": "documents",
   "dialect": "postgres",
   "description": "Regression corpus. Every input here compiled to executable SQL in the implementation Sluice generalizes, because unrecognized tokens were copied verbatim into the WHERE clause. Each must now produce a diagnostic and no SQL. Run this file first when a port believes it is finished. The related wildcard bug — name ~ \"%\" matching every row — is asserted in 004 rather than here, since it is a compile-output regression rather than a rejection.",
   "cases": [
@@ -13,14 +13,14 @@
     },
     {
       "name": "tautology appended to a valid predicate",
-      "input": "phase = \"in-use\" AND 1=1",
-      "was": "LOWER(phase) = 'in-use' AND 1 = 1",
+      "input": "state = \"shared\" AND 1=1",
+      "was": "LOWER(state) = 'shared' AND 1 = 1",
       "diagnostics": [{ "code": "unexpected_token", "span": [21, 22] }]
     },
     {
       "name": "subquery smuggled through the unknown-token branch",
-      "input": "phase = \"in-use\" OR EXISTS (SELECT 1 FROM machine)",
-      "was": "LOWER(phase) = 'in-use' OR exists ( select 1 from machine )",
+      "input": "state = \"shared\" OR EXISTS (SELECT 1 FROM document)",
+      "was": "LOWER(state) = 'shared' OR exists ( select 1 from document )",
       "diagnostics": [{ "code": "unknown_field", "span": [20, 26] }]
     },
     {
@@ -31,8 +31,8 @@
     },
     {
       "name": "statement separator",
-      "input": "name = \"x\"; DROP TABLE machine",
-      "was": "LOWER(name) = 'x' ; drop table machine",
+      "input": "name = \"x\"; DROP TABLE document",
+      "was": "LOWER(name) = 'x' ; drop table document",
       "diagnostics": [{ "code": "unexpected_token", "span": [10, 11] }]
     },
     {
@@ -55,8 +55,8 @@
     },
     {
       "name": "parenthesis balance abused to escape the wrapping predicate",
-      "input": "phase = \"in-use\") OR (1=1",
-      "was": "LOWER(phase) = 'in-use' ) OR ( 1 = 1",
+      "input": "state = \"shared\") OR (1=1",
+      "was": "LOWER(state) = 'shared' ) OR ( 1 = 1",
       "diagnostics": [{ "code": "unbalanced_paren", "span": [16, 17] }]
     },
     {
@@ -67,7 +67,7 @@
     },
     {
       "name": "nesting depth is bounded before the parser allocates",
-      "input": "((((((((((((((((((phase = \"in-use\"))))))))))))))))))",
+      "input": "((((((((((((((((((state = \"shared\"))))))))))))))))))",
       "diagnostics": [{ "code": "depth_exceeded", "span": [16, 17] }]
     }
   ]

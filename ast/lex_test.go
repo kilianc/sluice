@@ -117,7 +117,7 @@ func TestLexKeywordsAreReservedRegardlessOfCase(t *testing.T) {
 }
 
 func TestLexNumbers(t *testing.T) {
-	toks, diags := Lex("cores>=32 AND cores<-1.5")
+	toks, diags := Lex("words>=32 AND words<-1.5")
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics %+v", diags)
 	}
@@ -128,7 +128,7 @@ func TestLexNumbers(t *testing.T) {
 
 func TestLexNothingUnrecognizedEntersTheTokenStream(t *testing.T) {
 	// Invariant 2 starts in the lexer: no passthrough token exists.
-	toks, diags := Lex(`name = "x"; DROP TABLE machine -- c`)
+	toks, diags := Lex(`name = "x"; DROP TABLE document -- c`)
 	if len(diags) == 0 {
 		t.Fatal("expected diagnostics for ; and --")
 	}

@@ -3,12 +3,13 @@ IMAGE := sluice-tools
 # and the test runner only ever read.
 NODE := docker run --rm -i -u "$$(id -u):$$(id -g)" -v "$$PWD:/work:ro" -w /work $(IMAGE) node
 
-.PHONY: help test test-go test-js race conformance conformance-js tools fmt vet
+.PHONY: help test test-go test-js race conformance conformance-js tools fmt vet playground
 
 help:
 	@echo "test            everything: Go, then the JS package in the tools image"
 	@echo "test-go         go test ./..."
-	@echo "test-js         node --test, in the tools image"
+	@echo "test-js         node --test for every JS package, in the tools image"
+	@echo "playground      serve the PGlite playground at http://localhost:8901"
 	@echo "race            go test -race ./..."
 	@echo "conformance     run the corpus against every adapter that can run here"
 	@echo "conformance-js  run the corpus against the JS adapter, in the tools image"
@@ -20,7 +21,7 @@ test-go:
 	go test ./...
 
 test-js: tools
-	$(NODE) --test js/packages/core/test/core.test.js
+	$(NODE) --test js/packages/core/test/core.test.js js/packages/monaco/test/monaco.test.js
 
 race:
 	go test -race ./...
@@ -42,3 +43,9 @@ conformance-js: tools
 
 tools:
 	docker build -t $(IMAGE) tools/
+
+# The playground is buildless: it loads Monaco and PGlite from a pinned CDN and
+# Sluice from this working tree, so what you see is the code you have.
+playground:
+	@echo "http://localhost:8901/playground/"
+	@python3 -m http.server 8901 --bind 127.0.0.1

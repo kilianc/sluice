@@ -1,51 +1,51 @@
 {
   "version": 1,
   "op": "compile",
-  "schema": "machines",
+  "schema": "documents",
   "dialect": "duckdb",
   "description": "The same predicates as 004-compile-postgres, showing exactly what a dialect is allowed to change: placeholder rendering, type casts, and the duration form. Structure, parenthesization, argument order and case folding are dialect-independent.",
   "cases": [
     {
       "name": "positional placeholders render as ?",
-      "input": "phase = \"in-use\"",
-      "sql": "LOWER(inv.phase) = ?",
-      "args": ["in-use"],
-      "fields": ["phase"]
+      "input": "state = \"shared\"",
+      "sql": "LOWER(doc.state) = ?",
+      "args": ["shared"],
+      "fields": ["state"]
     },
     {
       "name": "contains",
       "input": "name ~ \"Cell\"",
-      "sql": "LOWER(inv.name) LIKE ? ESCAPE '\\'",
+      "sql": "LOWER(doc.name) LIKE ? ESCAPE '\\'",
       "args": ["%cell%"],
       "fields": ["name"]
     },
     {
       "name": "boolean",
-      "input": "online = true",
-      "sql": "inv.online = ?",
+      "input": "active = true",
+      "sql": "doc.active = ?",
       "args": [true],
-      "fields": ["online"]
+      "fields": ["active"]
     },
     {
       "name": "uuid cast differs in spelling only",
       "input": "id = \"3F2504E0-4F89-11D3-9A0C-0305E82C3301\"",
-      "sql": "inv.id = ?::UUID",
+      "sql": "doc.id = ?::UUID",
       "args": ["3f2504e0-4f89-11d3-9a0c-0305e82c3301"],
       "fields": ["id"]
     },
     {
       "name": "duration uses date_diff but still binds seconds",
-      "input": "os_age > \"2 days\"",
-      "sql": "date_diff('second', img.created_at, current_timestamp) > ?",
+      "input": "edited > \"2 days\"",
+      "sql": "date_diff('second', rev.created_at, current_timestamp) > ?",
       "args": [172800],
-      "fields": ["os_age"]
+      "fields": ["edited"]
     },
     {
       "name": "precedence and parenthesization are dialect-independent",
-      "input": "phase = \"in-use\" OR online = true AND cores > 8",
-      "sql": "(LOWER(inv.phase) = ? OR (inv.online = ? AND inv.cores > ?))",
-      "args": ["in-use", true, 8],
-      "fields": ["phase", "online", "cores"]
+      "input": "state = \"shared\" OR active = true AND words > 8",
+      "sql": "(LOWER(doc.state) = ? OR (doc.active = ? AND doc.words > ?))",
+      "args": ["shared", true, 8],
+      "fields": ["state", "active", "words"]
     },
     {
       "name": "empty input compiles to empty",

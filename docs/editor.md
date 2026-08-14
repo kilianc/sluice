@@ -5,8 +5,27 @@ filter bar. `@sluice/core` gives you the two things an editor needs — completi
 at a cursor, and diagnostics with spans — and knows nothing about any particular
 editor.
 
-A binding for Monaco ships in v0.2 and one for CodeMirror in v0.3. Until then the
-integration is about thirty lines, and this page is what they are.
+If you use Monaco, [`@sluice/monaco`](../js/packages/monaco/) is the whole
+integration:
+
+```js
+import * as monaco from 'monaco-editor'
+import { createLanguage } from '@sluice/core'
+import { register } from '@sluice/monaco'
+
+const language = createLanguage(await (await fetch('/sluice/schema.json')).json())
+register(monaco, { language })
+
+monaco.editor.create(element, { value: 'state = "shared"', language: 'sluice' })
+```
+
+Completions, error underlines, highlighting and hovers are live from the first
+keystroke. The [playground](../playground/) is that code, running against a
+Postgres in the same page.
+
+The rest of this page is what the binding does on your behalf — worth reading if
+you are wiring up CodeMirror, another editor, or a plain `<input>`, and worth
+skimming even if you are not, because two of these are easy to get wrong.
 
 ## Getting the schema to the browser
 
@@ -14,9 +33,9 @@ The server serves the reduced schema, with dynamic values resolved:
 
 ```go
 http.HandleFunc("/sluice/schema.json", func(w http.ResponseWriter, r *http.Request) {
-    racks, _ := listRacks(r.Context())
+    teams, _ := listTeams(r.Context())
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(compiler.PublicSchema(map[string][]string{"rack": racks}))
+    json.NewEncoder(w).Encode(compiler.PublicSchema(map[string][]string{"team": teams}))
 })
 ```
 
@@ -33,7 +52,7 @@ That document carries no column SQL, so it is safe to hand out — see
 
 ```js
 lang.suggest(input, cursor)
-// [{ text: 'in-use', kind: 'value', detail: undefined, replaceSpan: [8, 8] }]
+// [{ text: 'shared', kind: 'value', detail: undefined, replaceSpan: [8, 8] }]
 ```
 
 `cursor` is a codepoint offset. `replaceSpan` is the range the completion should
@@ -53,10 +72,10 @@ the user has typed an opening quote, the span covers it.
 | `expression` | when a prefix matches no field at all | fallback fields, `=` before `~` |
 
 Declared order is preserved for operators and values on purpose. A schema author
-who wrote `["in-use", "not-in-use"]` ordered them for a reason, and `=` should
+who wrote `["shared", "restricted"]` ordered them for a reason, and `=` should
 never sort below `!=`.
 
-The `expression` kind is the one that earns its keep: paste a hostname or a UUID
+The `expression` kind is the one that earns its keep: paste a title or a UUID
 into an empty filter bar and you get `name = "web-1"` and `name ~ "web-1"` — whole
 predicates, not a field list. Configure which fields it uses with
 `options.fallbackFields`; a prefix that looks like a UUID puts `uuid`-typed
@@ -69,7 +88,7 @@ behaviour: an editor asks for them precisely when the query is half-written.
 
 ```js
 const { ok, diagnostics } = lang.validate(input)
-// [{ code: 'unknown_field', message: 'unknown field phse; did you mean phase?', span: [0, 4] }]
+// [{ code: 'unknown_field', message: 'unknown field stat; did you mean state?', span: [0, 4] }]
 ```
 
 `validate` returns every independent problem, so one pass underlines all of them.
@@ -91,39 +110,21 @@ const toUTF16 = (text, codepoint) =>
 
 CodeMirror 6 counts codepoints already and needs neither.
 
-## A whole Monaco binding
+## Two things the binding does that are easy to miss
 
-```js
-monaco.languages.registerCompletionItemProvider('sluice', {
-  triggerCharacters: [' ', '"', '(', '='],
-  provideCompletionItems(model, position) {
-    const text = model.getValue()
-    const cursor = toCodepoint(text, model.getOffsetAt(position))
-    return {
-      suggestions: lang.suggest(text, cursor).map((s) => ({
-        label: s.text,
-        detail: s.detail,
-        insertText: s.text,
-        kind: monaco.languages.CompletionItemKind.Value,
-        range: spanToRange(model, text, s.replaceSpan),
-      })),
-    }
-  },
-})
+**Preserve the order.** Monaco re-sorts completions by label unless each item
+carries a `sortText`, which would put `!=` above `=` and alphabetize enum values
+a schema author deliberately ordered. Any editor that sorts for you needs the
+same treatment.
 
-model.onDidChangeContent(() => {
-  const text = model.getValue()
-  monaco.editor.setModelMarkers(model, 'sluice', lang.validate(text).diagnostics.map((d) => ({
-    message: d.message,
-    severity: monaco.MarkerSeverity.Error,
-    ...spanToRange(model, text, d.span),
-  })))
-})
-```
+**Filter against the replaced text, not the label.** An `expression` suggestion
+is labelled `name = "web-1"` while the user typed `web-1`, so an editor filtering
+on the label alone drops exactly the suggestion that was most useful. Point the
+filter at the text inside `replaceSpan`.
 
-where `spanToRange` maps a codepoint span through `toUTF16` and
-`model.getPositionAt`. Validation is fast enough to run on every keystroke —
-there is no network call and no parse of anything but the filter string.
+Beyond that: set the completion range from `replaceSpan` rather than from the
+editor's idea of the current word, widen a zero-width diagnostic so it underlines
+something, and convert offsets at every boundary.
 
 ## Which mode you are in
 

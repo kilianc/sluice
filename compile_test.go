@@ -14,11 +14,11 @@ import (
 	"github.com/kilianc/sluice/dialect/postgres"
 )
 
-// machines loads the same schema the conformance corpus uses, so the unit tests
+// documents loads the same schema the conformance corpus uses, so the unit tests
 // and the corpus talk about the same fields.
-func machines(t *testing.T, d sluice.Dialect) *sluice.Compiler {
+func documents(t *testing.T, d sluice.Dialect) *sluice.Compiler {
 	t.Helper()
-	data, err := os.ReadFile("conformance/schemas/machines.json")
+	data, err := os.ReadFile("conformance/schemas/documents.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func diagnosticOf(t *testing.T, err error) sluice.Diagnostic {
 }
 
 func TestCompileEmptyInputIsEmpty(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	res, err := c.Compile("   ")
 	if err != nil {
 		t.Fatal(err)
@@ -59,18 +59,18 @@ func TestCompileEmptyInputIsEmpty(t *testing.T) {
 // TestCompileNeverEmitsInputText is the standing audit of invariant 1: no text
 // originating in the input may appear in the emitted SQL, whatever the input is.
 func TestCompileNeverEmitsInputText(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	const marker = "Zq7Marker"
 	inputs := []string{
 		`name = "` + marker + `"`,
 		`name ~ "` + marker + `"`,
 		`name !~ "%` + marker + `_"`,
-		`phase = "` + marker + `"`,
-		`rack = "` + marker + `"`,
+		`state = "` + marker + `"`,
+		`team = "` + marker + `"`,
 		`id = "` + marker + `"`,
-		`os_age > "` + marker + `"`,
-		`name = "` + marker + `" AND (online = true OR NOT cores > 4)`,
-		`name = "'; DROP TABLE machine --` + marker + `"`,
+		`edited > "` + marker + `"`,
+		`name = "` + marker + `" AND (active = true OR NOT words > 4)`,
+		`name = "'; DROP TABLE document --` + marker + `"`,
 		`name = "\\" OR 1=1 --` + marker + `"`,
 	}
 	for _, in := range inputs {
@@ -92,17 +92,17 @@ func TestCompileNeverEmitsInputText(t *testing.T) {
 func TestCompileRejectsEveryOriginInjection(t *testing.T) {
 	// The shapes 006-security.json pins, asserted here too so a refactor that
 	// breaks them fails the unit suite as well as the corpus.
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	for _, in := range []string{
 		`1=1`,
-		`phase = "in-use" AND 1=1`,
-		`phase = "in-use" OR EXISTS (SELECT 1 FROM machine)`,
+		`state = "shared" AND 1=1`,
+		`state = "shared" OR EXISTS (SELECT 1 FROM document)`,
 		`bogus_column = "x"`,
-		`name = "x"; DROP TABLE machine`,
+		`name = "x"; DROP TABLE document`,
 		`name = "x" UNION SELECT 1`,
 		`name = "x" -- comment`,
 		`name = 'x' OR 1=1`,
-		`phase = "in-use") OR (1=1`,
+		`state = "shared") OR (1=1`,
 		`name = pg_sleep(10)`,
 	} {
 		res, err := c.Compile(in)
@@ -116,12 +116,12 @@ func TestCompileRejectsEveryOriginInjection(t *testing.T) {
 }
 
 func TestCompileArgumentsFollowPlaceholderOrder(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	res, err := c.Compile(`(name ~ "a" OR name ~ "b") AND cores > 2`)
+	c := documents(t, postgres.Dialect)
+	res, err := c.Compile(`(name ~ "a" OR name ~ "b") AND words > 2`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `((LOWER(inv.name) LIKE $1 ESCAPE '\' OR LOWER(inv.name) LIKE $2 ESCAPE '\') AND inv.cores > $3)`
+	want := `((LOWER(doc.name) LIKE $1 ESCAPE '\' OR LOWER(doc.name) LIKE $2 ESCAPE '\') AND doc.words > $3)`
 	if res.SQL != want {
 		t.Errorf("sql  = %s\nwant = %s", res.SQL, want)
 	}
@@ -132,10 +132,10 @@ func TestCompileArgumentsFollowPlaceholderOrder(t *testing.T) {
 
 func TestCompileIsDeterministic(t *testing.T) {
 	// Invariant 4: map iteration order must never be observable in output.
-	c := machines(t, postgres.Dialect).WithDynamic(map[string][]string{
-		"rack": {"ash1-r01", "ash1-r02", "ash1-r03", "ash2-r01"},
+	c := documents(t, postgres.Dialect).WithDynamic(map[string][]string{
+		"team": {"design-a", "design-b", "desi-r03", "deploy-a"},
 	})
-	const in = `rack = "ash1-r01" AND (phase = "in-use" OR NOT online = true) AND name ~ "web"`
+	const in = `team = "design-a" AND (state = "shared" OR NOT active = true) AND name ~ "web"`
 	first, err := c.Compile(in)
 	if err != nil {
 		t.Fatal(err)
@@ -160,19 +160,19 @@ func TestCompileIsDeterministic(t *testing.T) {
 }
 
 func TestCompilerIsSafeForConcurrentUse(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	inputs := []string{
-		`phase = "in-use" AND name ~ "web"`,
-		`NOT online = true`,
-		`os_age > "1w 2d" OR cores <= 4`,
-		`rack = "ash1-r01"`,
+		`state = "shared" AND name ~ "web"`,
+		`NOT active = true`,
+		`edited > "1w 2d" OR words <= 4`,
+		`team = "design-a"`,
 	}
 	var wg sync.WaitGroup
 	for i := 0; i < 8; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			view := c.WithDynamic(map[string][]string{"rack": {"ash1-r01"}})
+			view := c.WithDynamic(map[string][]string{"team": {"design-a"}})
 			for n := 0; n < 50; n++ {
 				in := inputs[(i+n)%len(inputs)]
 				if _, err := view.Compile(in); err != nil {
@@ -187,8 +187,8 @@ func TestCompilerIsSafeForConcurrentUse(t *testing.T) {
 }
 
 func TestValidateReportsEveryIndependentProblem(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	diags := c.Validate(`phse = "x" AND online ~ "y" AND phase = "bogus"`)
+	c := documents(t, postgres.Dialect)
+	diags := c.Validate(`stat = "x" AND active ~ "y" AND state = "bogus"`)
 	want := []string{"unknown_field", "unknown_operator_for_field", "invalid_value_for_field"}
 	if len(diags) != len(want) {
 		t.Fatalf("diagnostics = %+v, want %v", diags, want)
@@ -201,16 +201,16 @@ func TestValidateReportsEveryIndependentProblem(t *testing.T) {
 }
 
 func TestValidateSuggestsNearbyFieldNames(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	diags := c.Validate(`phse = "x"`)
-	if len(diags) != 1 || len(diags[0].Suggestions) == 0 || diags[0].Suggestions[0] != "phase" {
-		t.Fatalf("diagnostics = %+v, want phase suggested first", diags)
+	c := documents(t, postgres.Dialect)
+	diags := c.Validate(`stat = "x"`)
+	if len(diags) != 1 || len(diags[0].Suggestions) == 0 || diags[0].Suggestions[0] != "state" {
+		t.Fatalf("diagnostics = %+v, want state suggested first", diags)
 	}
 }
 
 func TestCompileStopsAtTheFirstDiagnostic(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	_, err := c.Compile(`phse = "x" AND online ~ "y"`)
+	c := documents(t, postgres.Dialect)
+	_, err := c.Compile(`stat = "x" AND active ~ "y"`)
 	d := diagnosticOf(t, err)
 	if d.Code != "unknown_field" || d.Span != (sluice.Span{Start: 0, End: 4}) {
 		t.Errorf("diagnostic = %+v, want unknown_field at [0,4)", d)
@@ -220,7 +220,7 @@ func TestCompileStopsAtTheFirstDiagnostic(t *testing.T) {
 func TestInputLengthIsBoundedBeforeLexing(t *testing.T) {
 	schema := sluice.Schema{
 		Options: sluice.Options{MaxLength: 16},
-		Fields:  []sluice.Field{{Name: "name", Type: sluice.TypeString, Column: "inv.name"}},
+		Fields:  []sluice.Field{{Name: "name", Type: sluice.TypeString, Column: "doc.name"}},
 	}
 	c, err := sluice.New(schema, postgres.Dialect)
 	if err != nil {
@@ -234,7 +234,7 @@ func TestInputLengthIsBoundedBeforeLexing(t *testing.T) {
 
 func TestCompileASTIsValidatedLikeText(t *testing.T) {
 	// Mode B: a hostile client can express only what the server's schema permits.
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 
 	for _, tc := range []struct {
 		name string
@@ -242,10 +242,10 @@ func TestCompileASTIsValidatedLikeText(t *testing.T) {
 		code string
 	}{
 		{"unknown field", `{"kind":"predicate","field":"bogus","op":"=","value":{"type":"string","value":"x"}}`, "unknown_field"},
-		{"operator the field does not permit", `{"kind":"predicate","field":"online","op":"~","value":{"type":"string","value":"x"}}`, "unknown_operator_for_field"},
-		{"value outside the enum", `{"kind":"predicate","field":"phase","op":"=","value":{"type":"string","value":"nope"}}`, "invalid_value_for_field"},
-		{"literal of the wrong type", `{"kind":"predicate","field":"cores","op":">","value":{"type":"string","value":"8"}}`, "invalid_value_for_field"},
-		{"duration that is not one", `{"kind":"predicate","field":"os_age","op":">","value":{"type":"string","value":"2 fortnights"}}`, "invalid_duration"},
+		{"operator the field does not permit", `{"kind":"predicate","field":"active","op":"~","value":{"type":"string","value":"x"}}`, "unknown_operator_for_field"},
+		{"value outside the enum", `{"kind":"predicate","field":"state","op":"=","value":{"type":"string","value":"nope"}}`, "invalid_value_for_field"},
+		{"literal of the wrong type", `{"kind":"predicate","field":"words","op":">","value":{"type":"string","value":"8"}}`, "invalid_value_for_field"},
+		{"duration that is not one", `{"kind":"predicate","field":"edited","op":">","value":{"type":"string","value":"2 fortnights"}}`, "invalid_duration"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var node ast.Node
@@ -264,8 +264,8 @@ func TestCompileASTIsValidatedLikeText(t *testing.T) {
 }
 
 func TestCompileASTMatchesCompilingTheSource(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	const in = `phase = "in-use" AND NOT (name ~ "web" OR cores >= 8)`
+	c := documents(t, postgres.Dialect)
+	const in = `state = "shared" AND NOT (name ~ "web" OR words >= 8)`
 	fromText, err := c.Compile(in)
 	if err != nil {
 		t.Fatal(err)
@@ -290,7 +290,7 @@ func TestCompileASTMatchesCompilingTheSource(t *testing.T) {
 func TestCompileASTRejectsHandBuiltNodesItCannotTrust(t *testing.T) {
 	// Nothing stops a host from assembling a node itself, so the operator and
 	// the shape are checked rather than assumed.
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	pred := func(op string) *ast.Node {
 		return &ast.Node{
 			Kind:  ast.KindPredicate,
@@ -323,10 +323,10 @@ func TestCompileASTRejectsHandBuiltNodesItCannotTrust(t *testing.T) {
 }
 
 func TestCompileASTBoundsNesting(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	node := &ast.Node{
 		Kind:  ast.KindPredicate,
-		Field: "online",
+		Field: "active",
 		Op:    "=",
 		Value: ast.Literal{Type: ast.LitBoolean, Bool: true},
 	}
@@ -339,35 +339,35 @@ func TestCompileASTBoundsNesting(t *testing.T) {
 }
 
 func TestWithDynamicDoesNotMutateTheCompiler(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	view := c.WithDynamic(map[string][]string{"rack": {"ash1-r01"}})
+	c := documents(t, postgres.Dialect)
+	view := c.WithDynamic(map[string][]string{"team": {"design-a"}})
 
-	if _, err := view.Compile(`rack = "ash1-r01"`); err != nil {
+	if _, err := view.Compile(`team = "design-a"`); err != nil {
 		t.Fatalf("view rejected a supplied value: %v", err)
 	}
 	// The base compiler never learned the values: a dynamic field with none
 	// supplied accepts any string rather than erroring.
-	if _, err := c.Compile(`rack = "anything-at-all"`); err != nil {
+	if _, err := c.Compile(`team = "anything-at-all"`); err != nil {
 		t.Fatalf("base compiler should accept any string for an unresolved dynamic enum: %v", err)
 	}
-	if got := len(c.Suggest(`rack = "`, 8)); got != 0 {
+	if got := len(c.Suggest(`team = "`, 8)); got != 0 {
 		t.Errorf("base compiler offered %d completions, want none", got)
 	}
 }
 
 func TestPublicSchemaCarriesNoColumnSQL(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	pub := c.PublicSchema(map[string][]string{"rack": {"ash1-r01"}})
+	c := documents(t, postgres.Dialect)
+	pub := c.PublicSchema(map[string][]string{"team": {"design-a"}})
 	data, err := json.Marshal(pub)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{"inv.phase", "img.created_at", "loc.name", "inv.name"} {
+	for _, secret := range []string{"doc.state", "rev.created_at", "grp.name", "doc.name"} {
 		if strings.Contains(string(data), secret) {
 			t.Errorf("public schema leaked %q:\n%s", secret, data)
 		}
 	}
-	if !strings.Contains(string(data), "ash1-r01") {
+	if !strings.Contains(string(data), "design-a") {
 		t.Errorf("public schema should carry resolved dynamic values:\n%s", data)
 	}
 	for _, f := range pub.Fields {
@@ -386,8 +386,8 @@ func TestDynamicValuesMayArriveResolvedOnTheField(t *testing.T) {
 	// This is the shape PublicSchema emits for the browser: dynamic, with the
 	// request's values already resolved onto the field. It has to load back in,
 	// or an implementation rejects its own browser-facing schema.
-	c := machines(t, postgres.Dialect)
-	pub := c.PublicSchema(map[string][]string{"rack": {"ash1-r01", "ash1-r02"}})
+	c := documents(t, postgres.Dialect)
+	pub := c.PublicSchema(map[string][]string{"team": {"design-a", "design-b"}})
 	data, err := json.Marshal(pub)
 	if err != nil {
 		t.Fatal(err)
@@ -407,12 +407,12 @@ func TestDynamicValuesMayArriveResolvedOnTheField(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := client.Suggest(`rack = "ash1`, 12); len(got) != 2 {
-		t.Errorf("suggestions = %+v, want both resolved racks", got)
+	if got := client.Suggest(`team = "desi`, 12); len(got) != 2 {
+		t.Errorf("suggestions = %+v, want both resolved teams", got)
 	}
 	// The field is still dynamic, so the client never rejects a value its
 	// server would have accepted.
-	if diags := client.Validate(`rack = "somewhere-else"`); len(diags) != 0 {
+	if diags := client.Validate(`team = "somewhere-else"`); len(diags) != 0 {
 		t.Errorf("diagnostics = %+v, want none", diags)
 	}
 }
@@ -443,17 +443,17 @@ func restoreColumns(t *testing.T, schema map[string]any, source sluice.Schema) [
 }
 
 func TestDialectsDifferOnlyWhereTheSpecSaysTheyMay(t *testing.T) {
-	const in = `id = "3F2504E0-4F89-11D3-9A0C-0305E82C3301" AND os_age > "2 days"`
-	pg, err := machines(t, postgres.Dialect).Compile(in)
+	const in = `id = "3F2504E0-4F89-11D3-9A0C-0305E82C3301" AND edited > "2 days"`
+	pg, err := documents(t, postgres.Dialect).Compile(in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	duck, err := machines(t, duckdb.Dialect).Compile(in)
+	duck, err := documents(t, duckdb.Dialect).Compile(in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantPG := `(inv.id = $1::uuid AND EXTRACT(EPOCH FROM (NOW() - img.created_at)) > $2)`
-	wantDuck := `(inv.id = ?::UUID AND date_diff('second', img.created_at, current_timestamp) > ?)`
+	wantPG := `(doc.id = $1::uuid AND EXTRACT(EPOCH FROM (NOW() - rev.created_at)) > $2)`
+	wantDuck := `(doc.id = ?::UUID AND date_diff('second', rev.created_at, current_timestamp) > ?)`
 	if pg.SQL != wantPG {
 		t.Errorf("postgres = %s, want %s", pg.SQL, wantPG)
 	}

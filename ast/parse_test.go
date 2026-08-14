@@ -57,7 +57,7 @@ func TestParseNotBindsTighterThanAnd(t *testing.T) {
 
 func TestParseBareIdentifierIsNotAValue(t *testing.T) {
 	// The single rule that removes the injection surface (AGENTS.md §5).
-	res := parse(t, `phase = in-use`)
+	res := parse(t, `state = shared`)
 	if len(res.Diagnostics) == 0 || res.Diagnostics[0].Code != CodeUnexpectedToken {
 		t.Fatalf("diagnostics = %v, want unexpected_token first", codes(res.Diagnostics))
 	}
@@ -128,7 +128,7 @@ func TestParseDiagnosticsAreOrderedByPosition(t *testing.T) {
 func TestParseOrphanFieldsAreReportedForFailedPredicates(t *testing.T) {
 	// EXISTS never becomes a predicate, but resolution still needs to see it so
 	// the user gets unknown_field rather than only a syntax error further right.
-	res := parse(t, `phase = "in-use" OR EXISTS (SELECT 1 FROM machine)`)
+	res := parse(t, `state = "shared" OR EXISTS (SELECT 1 FROM document)`)
 	if len(res.Orphans) != 1 || res.Orphans[0].Name != "exists" {
 		t.Fatalf("orphans = %+v, want exists", res.Orphans)
 	}
@@ -138,9 +138,9 @@ func TestParseOrphanFieldsAreReportedForFailedPredicates(t *testing.T) {
 }
 
 func TestParseFieldNamesNormalizeToLowercase(t *testing.T) {
-	res := parse(t, `PHASE = "x"`)
-	if res.Node.Field != "phase" {
-		t.Errorf("field = %q, want phase", res.Node.Field)
+	res := parse(t, `STATE = "x"`)
+	if res.Node.Field != "state" {
+		t.Errorf("field = %q, want state", res.Node.Field)
 	}
 }
 
@@ -164,12 +164,12 @@ func TestASTJSONRoundTrip(t *testing.T) {
 }
 
 func TestASTEncodingIsTheNormativeShape(t *testing.T) {
-	res := parse(t, `phase = "in-use"`)
+	res := parse(t, `state = "shared"`)
 	data, err := json.Marshal(res.Node)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"kind":"predicate","op":"=","field":"phase","value":{"type":"string","value":"in-use"},"span":[0,16]}`
+	want := `{"kind":"predicate","op":"=","field":"state","value":{"type":"string","value":"shared"},"span":[0,16]}`
 	if string(data) != want {
 		t.Errorf("encoding =\n%s\nwant\n%s", data, want)
 	}
@@ -181,7 +181,7 @@ func TestASTDecoderRejectsWhatItDoesNotRecognize(t *testing.T) {
 		`{"kind":"raw","sql":"1=1"}`,
 		`{"kind":"binary","op":"union","left":null,"right":null}`,
 		`{"kind":"predicate","field":"a","op":"DROP","value":{"type":"string","value":"x"}}`,
-		`{"kind":"predicate","field":"a","op":"=","value":{"type":"column","value":"inv.id"}}`,
+		`{"kind":"predicate","field":"a","op":"=","value":{"type":"column","value":"doc.id"}}`,
 		`{"kind":"predicate","op":"=","value":{"type":"string","value":"x"}}`,
 		`{"kind":"not"}`,
 		`{"kind":"predicate","field":"a","op":"=","value":{"type":"string","value":"x"},"sql":"1=1"}`,

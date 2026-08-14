@@ -18,17 +18,17 @@ func texts(sugg []sluice.Suggestion) string {
 
 func TestSuggestWorksOnInputThatDoesNotParse(t *testing.T) {
 	// An editor asks for completions precisely when the query is half-written.
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	for _, tc := range []struct {
 		input  string
 		cursor int
 		want   string
 	}{
-		{"phase = ", 8, "in-use not-in-use maintenance"},
-		{"phase = \"in-use\" AND onl", 24, "online"},
-		{"NOT ", 4, "cores id name online os_age phase rack"},
-		{"(phase = \"in-use\" OR ", 21, "cores id name online os_age phase rack"},
-		{"phase = \"in-use\" AND (", 22, "cores id name online os_age phase rack"},
+		{"state = ", 8, "shared restricted unpublished"},
+		{"state = \"shared\" AND act", 24, "active"},
+		{"NOT ", 4, "active edited id name state team words"},
+		{"(state = \"shared\" OR ", 21, "active edited id name state team words"},
+		{"state = \"shared\" AND (", 22, "active edited id name state team words"},
 	} {
 		got := texts(c.Suggest(tc.input, tc.cursor))
 		if got != tc.want {
@@ -38,9 +38,9 @@ func TestSuggestWorksOnInputThatDoesNotParse(t *testing.T) {
 }
 
 func TestSuggestFieldOrderIsExactThenPrefixThenSubstring(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	if got := texts(c.Suggest("o", 1)); got != "online os_age cores" {
-		t.Errorf("Suggest(\"o\") = %q", got)
+	c := documents(t, postgres.Dialect)
+	if got := texts(c.Suggest("e", 1)); got != "edited active name state team" {
+		t.Errorf("Suggest(\"e\") = %q", got)
 	}
 	if got := texts(c.Suggest("name", 4)); got != "name" {
 		t.Errorf("an exact match should come first: %q", got)
@@ -51,16 +51,16 @@ func TestSuggestFieldOrderIsExactThenPrefixThenSubstring(t *testing.T) {
 }
 
 func TestSuggestCarriesTheFieldDescription(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	sugg := c.Suggest("ph", 2)
-	if len(sugg) != 1 || sugg[0].Detail != "Lifecycle phase" {
+	c := documents(t, postgres.Dialect)
+	sugg := c.Suggest("st", 2)
+	if len(sugg) != 1 || sugg[0].Detail != "Lifecycle state" {
 		t.Errorf("suggestion = %+v, want the schema description as detail", sugg)
 	}
 }
 
 func TestSuggestReplaceSpanCoversAnOpeningQuote(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	sugg := c.Suggest(`phase = "not`, 12)
+	c := documents(t, postgres.Dialect)
+	sugg := c.Suggest(`state = "res`, 12)
 	if len(sugg) != 1 {
 		t.Fatalf("suggestions = %+v", sugg)
 	}
@@ -70,20 +70,20 @@ func TestSuggestReplaceSpanCoversAnOpeningQuote(t *testing.T) {
 }
 
 func TestSuggestClosingParenOnlyWhileOneIsOpen(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	if got := texts(c.Suggest(`phase = "in-use" `, 17)); got != "AND OR" {
+	c := documents(t, postgres.Dialect)
+	if got := texts(c.Suggest(`state = "shared" `, 17)); got != "AND OR" {
 		t.Errorf("suggestions = %q, want AND OR", got)
 	}
-	if got := texts(c.Suggest(`(phase = "in-use" `, 18)); got != "AND OR )" {
+	if got := texts(c.Suggest(`(state = "shared" `, 18)); got != "AND OR )" {
 		t.Errorf("suggestions = %q, want AND OR )", got)
 	}
-	if got := texts(c.Suggest(`(phase = "in-use") `, 19)); got != "AND OR" {
+	if got := texts(c.Suggest(`(state = "shared") `, 19)); got != "AND OR" {
 		t.Errorf("suggestions = %q, want AND OR once the paren is closed", got)
 	}
 }
 
 func TestSuggestBareValueFallback(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	got := texts(c.Suggest("web-1", 5))
 	if want := `name = "web-1" name ~ "web-1"`; got != want {
 		t.Errorf("suggestions = %q, want %q", got, want)
@@ -98,7 +98,7 @@ func TestSuggestBareValueFallback(t *testing.T) {
 }
 
 func TestSuggestFallbackQuotesTheValue(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	sugg := c.Suggest(`a"b`, 3)
 	if len(sugg) == 0 || !strings.Contains(sugg[0].Text, `\"`) {
 		t.Errorf("suggestion = %+v, want the inner quote escaped", sugg)
@@ -106,34 +106,34 @@ func TestSuggestFallbackQuotesTheValue(t *testing.T) {
 }
 
 func TestSuggestOperatorsPreserveDeclaredOrder(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	if got := texts(c.Suggest("phase ", 6)); got != "= != ~ !~" {
+	c := documents(t, postgres.Dialect)
+	if got := texts(c.Suggest("state ", 6)); got != "= != ~ !~" {
 		t.Errorf("suggestions = %q, want the declared order", got)
 	}
-	if got := texts(c.Suggest("online ", 7)); got != "=" {
+	if got := texts(c.Suggest("active ", 7)); got != "=" {
 		t.Errorf("suggestions = %q, want only =", got)
 	}
-	if got := texts(c.Suggest("os_age ", 7)); got != "< <= > >=" {
+	if got := texts(c.Suggest("edited ", 7)); got != "< <= > >=" {
 		t.Errorf("suggestions = %q", got)
 	}
 }
 
 func TestSuggestFreeTextValuesOfferNothing(t *testing.T) {
-	c := machines(t, postgres.Dialect)
+	c := documents(t, postgres.Dialect)
 	if got := c.Suggest("name = ", 7); len(got) != 0 {
 		t.Errorf("suggestions = %+v, want none", got)
 	}
-	if got := c.Suggest("cores > ", 8); len(got) != 0 {
+	if got := c.Suggest("words > ", 8); len(got) != 0 {
 		t.Errorf("suggestions = %+v, want none", got)
 	}
 }
 
 func TestSuggestCursorIsClamped(t *testing.T) {
-	c := machines(t, postgres.Dialect)
-	if got := c.Suggest("phase", -5); len(got) == 0 {
+	c := documents(t, postgres.Dialect)
+	if got := c.Suggest("state", -5); len(got) == 0 {
 		t.Error("a negative cursor should behave as 0")
 	}
-	if got := c.Suggest("phase", 500); len(got) == 0 {
+	if got := c.Suggest("state", 500); len(got) == 0 {
 		t.Error("a cursor past the end should behave as the end")
 	}
 }

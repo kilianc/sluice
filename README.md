@@ -6,7 +6,7 @@ Declare your fields once. Get a parser, a SQL compiler that binds every value as
 parameter, and an autocompleting editor — in the browser, on the server, or both.
 
 ```
-phase = "in-use" AND rack ~ "ash1" AND NOT online = true
+state = "shared" AND team ~ "desi" AND NOT active = true
 ```
 
 ## Install
@@ -16,7 +16,8 @@ go get github.com/kilianc/sluice
 ```
 
 ```bash
-npm install @sluice/core
+npm install @sluice/core          # the language
+npm install @sluice/monaco        # optional: the Monaco binding
 ```
 
 ## Compile a query
@@ -33,14 +34,14 @@ import (
 )
 
 const schemaJSON = `{
-  "name": "machines",
+  "name": "documents",
   "fields": [
-    { "name": "name",  "type": "string", "column": "inv.name" },
-    { "name": "phase", "type": "enum",   "column": "inv.phase",
-      "values": ["in-use", "not-in-use"] },
-    { "name": "rack",  "type": "enum",   "column": "loc.name", "dynamic": true }
+    { "name": "name",  "type": "string", "column": "doc.name" },
+    { "name": "state", "type": "enum",   "column": "doc.state",
+      "values": ["shared", "restricted"] },
+    { "name": "team",  "type": "enum",   "column": "grp.name", "dynamic": true }
   ],
-  "sorts": [ { "key": "name", "sql": "inv.name" } ]
+  "sorts": [ { "key": "name", "sql": "doc.name" } ]
 }`
 
 func main() {
@@ -53,14 +54,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	res, err := c.Compile(`phase = "in-use" AND rack ~ "ash1"`)
+	res, err := c.Compile(`state = "shared" AND team ~ "desi"`)
 	if err != nil {
 		log.Fatal(err) // a diagnostic, with a position; there is no SQL to fall back on
 	}
 
-	fmt.Println(res.SQL)    // (LOWER(inv.phase) = $1 AND LOWER(loc.name) LIKE $2 ESCAPE '\')
-	fmt.Println(res.Args)   // [in-use %ash1%]
-	fmt.Println(res.Fields) // [phase rack] — so you can prune joins
+	fmt.Println(res.SQL)    // (LOWER(doc.state) = $1 AND LOWER(grp.name) LIKE $2 ESCAPE '\')
+	fmt.Println(res.Args)   // [shared %desi%]
+	fmt.Println(res.Fields) // [state team] — so you can prune joins
 }
 ```
 
@@ -68,7 +69,7 @@ Then put it in your own query, where the constraints you already apply stay
 yours:
 
 ```go
-query := "SELECT inv.id, inv.name FROM machine inv WHERE inv.tenant_id = $1"
+query := "SELECT doc.id, doc.name FROM document doc WHERE doc.tenant_id = $1"
 // … append " AND (" + res.SQL + ")" with res.Args, and c.OrderBy("name", sluice.Desc)
 ```
 
@@ -81,14 +82,27 @@ import { duckdb } from '@sluice/core/dialects'
 
 const lang = createLanguage(await (await fetch('/sluice/schema.json')).json())
 
-lang.suggest('phase = ', 8) // → in-use, not-in-use
-lang.validate('phse = "x"') // → unknown_field at 0..4, did you mean "phase"?
-lang.parse('phase = "in-use"').ast   // send this to your server, or…
-lang.compile('phase = "in-use"', duckdb) // …compile locally, when the schema you
+lang.suggest('state = ', 8) // → shared, restricted
+lang.validate('stat = "x"') // → unknown_field at 0..4, did you mean "state"?
+lang.parse('state = "shared"').ast   // send this to your server, or…
+lang.compile('state = "shared"', duckdb) // …compile locally, when the schema you
                                          // serve publishes its columns — which is
                                          // the case worth wanting when the database
                                          // is in the browser too
 ```
+
+Wiring that to an editor is one call — completions, error underlines,
+highlighting and hovers, all from the same schema:
+
+```js
+import { register } from '@sluice/monaco'
+
+register(monaco, { language: lang })
+```
+
+There is a [playground](playground/) that does exactly this and executes the
+result against a Postgres compiled into the page, so nothing leaves the browser.
+Run it with `make playground`.
 
 ## Why
 
@@ -120,6 +134,7 @@ That constraint is what keeps it small enough to be worth depending on.
 | [schema.md](docs/schema.md) | declaring fields, dynamic enums, custom emitters |
 | [dialects.md](docs/dialects.md) | what a dialect controls, and writing one |
 | [editor.md](docs/editor.md) | completions and diagnostics in a filter bar |
+| [playground/](playground/) | compile and run a query with no server at all |
 | [security.md](docs/security.md) | the invariants, and the three ways to deploy client-side compilation |
 | [porting.md](docs/porting.md) | implementing Sluice in another language |
 
@@ -137,7 +152,7 @@ make test          # Go, then the JS package
 make conformance   # the corpus against every implementation
 ```
 
-Node is not required on your machine: the JS adapter and tests run in the pinned
+Node is not required on your document: the JS adapter and tests run in the pinned
 image from [`tools/Dockerfile`](tools/Dockerfile) when no runtime is available.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) has the versioning policy and the rule that
 keeps the implementations honest.

@@ -1,8 +1,8 @@
 # Security
 
 Sluice exists because the filter bar it generalizes appended any token it did not
-recognize straight into the `WHERE` clause. `phase = "in-use" OR EXISTS (SELECT 1
-FROM machine)` compiled. So did `1=1`. So did `bogus_column = "x"`. Behind SSO,
+recognize straight into the `WHERE` clause. `state = "shared" OR EXISTS (SELECT 1
+FROM document)` compiled. So did `1=1`. So did `bogus_column = "x"`. Behind SSO,
 against a read replica, with a statement timeout, that was survivable; it is not
 something to hand to strangers, and it is certainly not something a browser should
 compile.
@@ -34,7 +34,7 @@ emitters too, which is why the escape hatch is safe to offer.
 Two consequences worth stating plainly. `name ~ "%"` looks for a literal percent
 sign — `%`, `_` and `\` are escaped in the argument and the SQL carries an
 explicit `ESCAPE '\'`, so a wildcard cannot be written by hand. And a bare word is
-not a value: `phase = in-use` is a syntax error rather than a clever guess, which
+not a value: `state = shared` is a syntax error rather than a clever guess, which
 is the single rule that removes the injection surface.
 
 ## Compiling in the browser
@@ -64,7 +64,7 @@ The browser sends the **AST**; the server decodes it against *its own* schema an
 compiles. Recommended whenever a database sits behind a server.
 
 ```js
-fetch('/machines', { method: 'POST', body: JSON.stringify(lang.parse(input).ast) })
+fetch('/documents', { method: 'POST', body: JSON.stringify(lang.parse(input).ast) })
 ```
 
 ```go
@@ -108,7 +108,7 @@ responsibility, and a Sluice predicate should be `AND`-ed into whatever scoping
 your application already applies:
 
 ```go
-query := "SELECT ... FROM machine inv WHERE inv.tenant_id = $1"
+query := "SELECT ... FROM document doc WHERE doc.tenant_id = $1"
 if res.SQL != "" {
     query += " AND (" + res.SQL + ")"
 }

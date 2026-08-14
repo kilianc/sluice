@@ -82,8 +82,8 @@ There are no comments.
 Operators **MUST** be matched longest-first: `!=` before `!`, `<=` before `<`,
 `!~` before `!`. A bare `!` is `unexpected_token`.
 
-Operators **MUST NOT** require surrounding whitespace. `phase="in-use"` and
-`os_age>"2 days"` lex identically to their spaced forms.
+Operators **MUST NOT** require surrounding whitespace. `state="shared"` and
+`edited>"2 days"` lex identically to their spaced forms.
 
 `AND`, `OR`, `NOT`, `true`, and `false` are reserved: they lex as keywords even
 where a field of the same name exists. A schema **MUST NOT** declare a field with
@@ -143,13 +143,13 @@ enforced by the parser, never by the caller.
 
 ```json
 {
-  "name": "machines",
+  "name": "documents",
   "options": { "caseInsensitive": true, "maxDepth": 16 },
   "fields": [
-    { "name": "phase", "type": "enum", "column": "inv.phase",
-      "values": ["in-use", "not-in-use"], "description": "Lifecycle phase" }
+    { "name": "state", "type": "enum", "column": "doc.state",
+      "values": ["shared", "restricted"], "description": "Lifecycle state" }
   ],
-  "sorts": [ { "key": "name", "sql": "inv.name" } ]
+  "sorts": [ { "key": "name", "sql": "doc.name" } ]
 }
 ```
 
@@ -161,7 +161,7 @@ and the JS implementation **MUST NOT** require `column` to be present.
 
 ### 4.4 Dynamic enums
 
-A field with `dynamic: true` has its `values` supplied per request — racks,
+A field with `dynamic: true` has its `values` supplied per request — teams,
 tenants, and other sets that come from the database rather than the source code.
 Values are supplied as a `map[fieldName][]string` at compile time and **MUST NOT**
 be cached inside the compiler. A dynamic field whose values were not supplied
@@ -212,7 +212,7 @@ value      = STRING | NUMBER | TRUE | FALSE ;
 Precedence, tightest first: `NOT`, `AND`, `OR`. Both binary operators are
 left-associative. Empty input is a valid query producing an empty result (§8.5).
 
-Note what `value` excludes: a bare `IDENT` is **not** a value. `phase = in-use`
+Note what `value` excludes: a bare `IDENT` is **not** a value. `state = shared`
 is `unexpected_token`, not a clever guess. This single rule is what removes the
 injection surface that motivated the project.
 
@@ -229,7 +229,7 @@ encoding is normative. Three node kinds:
 ```json
 { "kind": "binary", "op": "and" | "or", "left": <node>, "right": <node> }
 { "kind": "not", "expr": <node> }
-{ "kind": "predicate", "field": "phase", "op": "=",
+{ "kind": "predicate", "field": "state", "op": "=",
   "value": { "type": "string" | "number" | "boolean", "value": <json> },
   "span": [0, 15] }
 ```
@@ -341,7 +341,7 @@ that order, and the emitted SQL carries an explicit `ESCAPE '\'`. Without this,
 `name ~ "%"` matches every row — a real bug in the implementation this project
 generalizes.
 
-`<durationForm>` measures age relative to now, so `os_age > "2 days"` means "older
+`<durationForm>` measures age relative to now, so `edited > "2 days"` means "older
 than two days":
 - postgres: `EXTRACT(EPOCH FROM (NOW() - C)) > P`
 - duckdb: `date_diff('second', C, current_timestamp) > P`
@@ -359,7 +359,7 @@ than two days":
 
 ### 8.4 Custom emitters
 
-Some predicates are not a column comparison — "is this machine running any
+Some predicates are not a column comparison — "is this document running any
 operation" may be an `EXISTS` over a JSONB column. A field **MAY** therefore carry
 a host-supplied emitter instead of a `column`:
 
@@ -437,7 +437,7 @@ The algorithm is a state walk over the token stream, not a parse:
    case-insensitively. **Field** candidates are ordered exact match, then prefix
    match, then substring match, alphabetically within each group. **Operator** and
    **value** candidates preserve their declared order instead — a schema author
-   who writes `["in-use", "not-in-use"]` ordered them for a reason, and `=` should
+   who writes `["shared", "restricted"]` ordered them for a reason, and `=` should
    never sort below `!=`. `replaceSpan` covers the prefix, including the stripped
    opening quote when there was one.
 4. Value candidates come from the field's `values` (static or dynamic) for `enum`,
@@ -469,10 +469,10 @@ stdin closes.
 
 ```json
 { "id": "case-1", "op": "lex" | "parse" | "compile" | "validate" | "suggest" | "schema",
-  "schema": { … } | "machines",
+  "schema": { … } | "documents",
   "dialect": "postgres",
-  "dynamic": { "rack": ["ASH1-R01"] },
-  "input": "phase = \"in-use\"",
+  "dynamic": { "team": ["DESIGN-A"] },
+  "input": "state = \"shared\"",
   "cursor": 8,
   "ast": { … } }
 ```
@@ -485,10 +485,10 @@ AST decoding (§6).
 
 ```json
 { "id": "case-1",
-  "tokens": [ { "kind": "IDENT", "value": "phase", "span": [0, 5] } ],
+  "tokens": [ { "kind": "IDENT", "value": "state", "span": [0, 5] } ],
   "ast": { … },
   "sql": "…", "args": [ … ], "fields": [ … ],
-  "suggestions": [ { "text": "in-use", "kind": "value", "replaceSpan": [8, 8] } ],
+  "suggestions": [ { "text": "shared", "kind": "value", "replaceSpan": [8, 8] } ],
   "diagnostics": [ { "code": "unknown_field", "span": [0, 4] } ] }
 ```
 

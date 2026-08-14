@@ -133,7 +133,7 @@ function fieldSuggestions(schema, prefix, span) {
 
 /**
  * Enum values and booleans, in declared order — a schema author who wrote
- * ["in-use", "not-in-use"] ordered them for a reason. Other types are free text
+ * ["shared", "restricted"] ordered them for a reason. Other types are free text
  * and offer nothing.
  */
 function valueSuggestions(field, dynamic, prefix, span) {

@@ -1,0 +1,29 @@
+{
+  "name": "@sluice/monaco",
+  "version": "0.2.0",
+  "description": "Monaco editor binding for Sluice: completions, diagnostics and highlighting from the same schema that drives the compiler.",
+  "keywords": ["sluice", "monaco", "monaco-editor", "filter", "autocomplete", "query-language"],
+  "license": "MIT",
+  "homepage": "https://github.com/kilianc/sluice",
+  "bugs": "https://github.com/kilianc/sluice/issues",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": ["src", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "peerDependencies": {
+    "@sluice/core": "^0.2.0",
+    "monaco-editor": ">=0.34"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kilianc/sluice.git",
+    "directory": "js/packages/monaco"
+  }
+}

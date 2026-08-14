@@ -19,7 +19,7 @@ import (
 // Builder has no method that writes a value into SQL text.
 
 const (
-	operationHead = "EXISTS (SELECT 1 FROM jsonb_each(inv.operations) AS op(name, payload) WHERE "
+	operationHead = "EXISTS (SELECT 1 FROM jsonb_each(doc.operations) AS op(name, payload) WHERE "
 	inProgress    = "op.payload ->> 'status' = 'in-progress'"
 )
 
@@ -53,29 +53,29 @@ func operationEmitter(b *sluice.Builder, op sluice.Operator, v sluice.Value) err
 func blockedEmitter(b *sluice.Builder, _ sluice.Operator, v sluice.Value) error {
 	switch v.String() {
 	case "true", "false":
-		b.WriteSQL("inv.blocked = " +
+		b.WriteSQL("doc.blocked = " +
 			b.Bind(b.Dialect().BoolArg(v.String() == "true")))
 	default:
-		b.WriteSQL("LOWER(inv.blocked_reason) = " + b.Bind(v.String()))
+		b.WriteSQL("LOWER(doc.blocked_reason) = " + b.Bind(v.String()))
 	}
 	return nil
 }
 
-// online: a derived predicate over a heartbeat timestamp, where the value
+// active: a derived predicate over a last-opened timestamp, where the value
 // selects the comparison rather than being compared.
-func onlineEmitter(b *sluice.Builder, _ sluice.Operator, v sluice.Value) error {
+func activeEmitter(b *sluice.Builder, _ sluice.Operator, v sluice.Value) error {
 	op := "<="
 	if !v.Bool() {
 		op = ">"
 	}
-	b.WriteSQL("FLOOR(EXTRACT(EPOCH FROM (NOW() - inv.last_heartbeat_at)) / 60) " +
+	b.WriteSQL("FLOOR(EXTRACT(EPOCH FROM (NOW() - doc.last_opened_at)) / 60) " +
 		op + " " + b.Bind(15))
 	return nil
 }
 
 // moving: a comparison between two columns.
 func movingEmitter(b *sluice.Builder, _ sluice.Operator, v sluice.Value) error {
-	b.WriteSQL("(inv.desired_group_id <> inv.current_group_id) = " +
+	b.WriteSQL("(doc.desired_group_id <> doc.current_group_id) = " +
 		b.Bind(b.Dialect().BoolArg(v.Bool())))
 	return nil
 }
@@ -87,9 +87,9 @@ func derivedCompiler(t *testing.T) *sluice.Compiler {
 		Fields: []sluice.Field{
 			{Name: "operation", Type: sluice.TypeString, Emit: operationEmitter},
 			{Name: "blocked", Type: sluice.TypeString, Emit: blockedEmitter},
-			{Name: "online", Type: sluice.TypeBoolean, Emit: onlineEmitter},
+			{Name: "active", Type: sluice.TypeBoolean, Emit: activeEmitter},
 			{Name: "moving", Type: sluice.TypeBoolean, Emit: movingEmitter},
-			{Name: "name", Type: sluice.TypeString, Column: "inv.name"},
+			{Name: "name", Type: sluice.TypeString, Column: "doc.name"},
 		},
 	}
 	c, err := sluice.New(schema, postgres.Dialect)
@@ -128,27 +128,27 @@ func TestCustomEmittersExpressTheOriginPredicates(t *testing.T) {
 		},
 		{
 			`blocked = "true"`,
-			"inv.blocked = $1",
+			"doc.blocked = $1",
 			[]any{true},
 		},
 		{
 			`blocked = "disk-failure"`,
-			"LOWER(inv.blocked_reason) = $1",
+			"LOWER(doc.blocked_reason) = $1",
 			[]any{"disk-failure"},
 		},
 		{
-			`online = true`,
-			"FLOOR(EXTRACT(EPOCH FROM (NOW() - inv.last_heartbeat_at)) / 60) <= $1",
+			`active = true`,
+			"FLOOR(EXTRACT(EPOCH FROM (NOW() - doc.last_opened_at)) / 60) <= $1",
 			[]any{15},
 		},
 		{
-			`online = false`,
-			"FLOOR(EXTRACT(EPOCH FROM (NOW() - inv.last_heartbeat_at)) / 60) > $1",
+			`active = false`,
+			"FLOOR(EXTRACT(EPOCH FROM (NOW() - doc.last_opened_at)) / 60) > $1",
 			[]any{15},
 		},
 		{
 			`moving = true`,
-			"(inv.desired_group_id <> inv.current_group_id) = $1",
+			"(doc.desired_group_id <> doc.current_group_id) = $1",
 			[]any{true},
 		},
 	} {
@@ -179,9 +179,9 @@ func TestCustomEmittersShareThePlaceholderSequence(t *testing.T) {
 		t.Fatal(err)
 	}
 	var (
-		name      = "LOWER(inv.name) = $1"
+		name      = "LOWER(doc.name) = $1"
 		operation = operationHead + "LOWER(op.name) = $2 AND " + inProgress + ")"
-		moving    = "(inv.desired_group_id <> inv.current_group_id) = $3"
+		moving    = "(doc.desired_group_id <> doc.current_group_id) = $3"
 	)
 	want := "((" + name + " AND " + operation + ") AND " + moving + ")"
 	if res.SQL != want {
@@ -229,8 +229,8 @@ func TestCaseFoldingIsPerFieldAndAsciiOnly(t *testing.T) {
 	sensitive := false
 	schema := sluice.Schema{
 		Fields: []sluice.Field{
-			{Name: "name", Type: sluice.TypeString, Column: "inv.name"},
-			{Name: "tag", Type: sluice.TypeString, Column: "inv.tag", CaseInsensitive: &sensitive},
+			{Name: "name", Type: sluice.TypeString, Column: "doc.name"},
+			{Name: "tag", Type: sluice.TypeString, Column: "doc.tag", CaseInsensitive: &sensitive},
 		},
 	}
 	c, err := sluice.New(schema, postgres.Dialect)
@@ -242,7 +242,7 @@ func TestCaseFoldingIsPerFieldAndAsciiOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.SQL != "LOWER(inv.name) = $1" || res.Args[0] != "mixedÉ" {
+	if res.SQL != "LOWER(doc.name) = $1" || res.Args[0] != "mixedÉ" {
 		t.Errorf("folded field: sql = %q, args = %#v", res.SQL, res.Args)
 	}
 
@@ -250,7 +250,7 @@ func TestCaseFoldingIsPerFieldAndAsciiOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.SQL != "inv.tag = $1" || res.Args[0] != "MixedÉ" {
+	if res.SQL != "doc.tag = $1" || res.Args[0] != "MixedÉ" {
 		t.Errorf("unfolded field: sql = %q, args = %#v", res.SQL, res.Args)
 	}
 }

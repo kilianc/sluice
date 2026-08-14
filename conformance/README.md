@@ -11,7 +11,7 @@ how to run the suite and how to add to it.
 ## Layout
 
 ```
-schemas/machines.json         the schema every corpus file loads by name
+schemas/documents.json         the schema every corpus file loads by name
 corpus/001-lex.json           token streams and spans
 corpus/002-parse.json         AST structure, precedence, associativity
 corpus/003-diagnostics.json   diagnostic codes and spans
@@ -67,10 +67,10 @@ individual cases may override. A case is otherwise a request (`input`, `cursor`,
 ```json
 {
   "name": "case-1",
-  "input": "phase = \"in-use\"",
-  "sql": "LOWER(inv.phase) = $1",
-  "args": ["in-use"],
-  "fields": ["phase"]
+  "input": "state = \"shared\"",
+  "sql": "LOWER(doc.state) = $1",
+  "args": ["shared"],
+  "fields": ["state"]
 }
 ```
 

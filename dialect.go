@@ -30,7 +30,7 @@ type Dialect interface {
 	LikeEscapeClause() string
 
 	// AgeSeconds renders an expression giving the age of a timestamp column in
-	// seconds, so that os_age > "2 days" means "older than two days".
+	// seconds, so that edited > "2 days" means "older than two days".
 	AgeSeconds(column string) string
 
 	// OrderBy renders a complete ORDER BY clause with nulls last.

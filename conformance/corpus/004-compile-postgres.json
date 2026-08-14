@@ -1,42 +1,42 @@
 {
   "version": 1,
   "op": "compile",
-  "schema": "machines",
+  "schema": "documents",
   "dialect": "postgres",
   "description": "Exact SQL and arguments. Every binary node is parenthesized unconditionally so output is determinable without precedence reasoning. Placeholders are $1..$n in argument order.",
   "cases": [
     {
       "name": "predicates emit without enclosing parentheses",
-      "input": "phase = \"in-use\"",
-      "sql": "LOWER(inv.phase) = $1",
-      "args": ["in-use"],
-      "fields": ["phase"]
+      "input": "state = \"shared\"",
+      "sql": "LOWER(doc.state) = $1",
+      "args": ["shared"],
+      "fields": ["state"]
     },
     {
       "name": "case folding lowercases the argument, not the SQL text",
-      "input": "phase = \"IN-USE\"",
-      "sql": "LOWER(inv.phase) = $1",
-      "args": ["in-use"],
-      "fields": ["phase"]
+      "input": "state = \"SHARED\"",
+      "sql": "LOWER(doc.state) = $1",
+      "args": ["shared"],
+      "fields": ["state"]
     },
     {
       "name": "inequality",
-      "input": "phase != \"in-use\"",
-      "sql": "LOWER(inv.phase) != $1",
-      "args": ["in-use"],
-      "fields": ["phase"]
+      "input": "state != \"shared\"",
+      "sql": "LOWER(doc.state) != $1",
+      "args": ["shared"],
+      "fields": ["state"]
     },
     {
       "name": "contains, with an explicit ESCAPE clause",
       "input": "name ~ \"Cell\"",
-      "sql": "LOWER(inv.name) LIKE $1 ESCAPE '\\'",
+      "sql": "LOWER(doc.name) LIKE $1 ESCAPE '\\'",
       "args": ["%cell%"],
       "fields": ["name"]
     },
     {
       "name": "does not contain",
       "input": "name !~ \"cell\"",
-      "sql": "LOWER(inv.name) NOT LIKE $1 ESCAPE '\\'",
+      "sql": "LOWER(doc.name) NOT LIKE $1 ESCAPE '\\'",
       "args": ["%cell%"],
       "fields": ["name"]
     },
@@ -55,92 +55,92 @@
     {
       "name": "LIKE metacharacters are escaped in the argument — the origin bug",
       "input": "name ~ \"100%_x\"",
-      "sql": "LOWER(inv.name) LIKE $1 ESCAPE '\\'",
+      "sql": "LOWER(doc.name) LIKE $1 ESCAPE '\\'",
       "args": ["%100\\%\\_x%"],
       "fields": ["name"]
     },
     {
       "name": "a literal backslash is escaped before the metacharacters",
       "input": "name ~ \"a\\\\b\"",
-      "sql": "LOWER(inv.name) LIKE $1 ESCAPE '\\'",
+      "sql": "LOWER(doc.name) LIKE $1 ESCAPE '\\'",
       "args": ["%a\\\\b%"],
       "fields": ["name"]
     },
     {
       "name": "boolean",
-      "input": "online = true",
-      "sql": "inv.online = $1",
+      "input": "active = true",
+      "sql": "doc.active = $1",
       "args": [true],
-      "fields": ["online"]
+      "fields": ["active"]
     },
     {
       "name": "negation",
-      "input": "NOT online = true",
-      "sql": "(NOT inv.online = $1)",
+      "input": "NOT active = true",
+      "sql": "(NOT doc.active = $1)",
       "args": [true],
-      "fields": ["online"]
+      "fields": ["active"]
     },
     {
       "name": "number",
-      "input": "cores >= 32",
-      "sql": "inv.cores >= $1",
+      "input": "words >= 32",
+      "sql": "doc.words >= $1",
       "args": [32],
-      "fields": ["cores"]
+      "fields": ["words"]
     },
     {
       "name": "uuid is cast in SQL and lowercased in the argument",
       "input": "id = \"3F2504E0-4F89-11D3-9A0C-0305E82C3301\"",
-      "sql": "inv.id = $1::uuid",
+      "sql": "doc.id = $1::uuid",
       "args": ["3f2504e0-4f89-11d3-9a0c-0305e82c3301"],
       "fields": ["id"]
     },
     {
       "name": "duration coerces to integer seconds; no interval text reaches SQL",
-      "input": "os_age > \"2 days\"",
-      "sql": "EXTRACT(EPOCH FROM (NOW() - img.created_at)) > $1",
+      "input": "edited > \"2 days\"",
+      "sql": "EXTRACT(EPOCH FROM (NOW() - rev.created_at)) > $1",
       "args": [172800],
-      "fields": ["os_age"]
+      "fields": ["edited"]
     },
     {
       "name": "compound duration",
-      "input": "os_age > \"1w 2d\"",
-      "sql": "EXTRACT(EPOCH FROM (NOW() - img.created_at)) > $1",
+      "input": "edited > \"1w 2d\"",
+      "sql": "EXTRACT(EPOCH FROM (NOW() - rev.created_at)) > $1",
       "args": [777600],
-      "fields": ["os_age"]
+      "fields": ["edited"]
     },
     {
       "name": "conjunction, arguments numbered in traversal order",
-      "input": "phase = \"in-use\" AND name ~ \"Cell\"",
-      "sql": "(LOWER(inv.phase) = $1 AND LOWER(inv.name) LIKE $2 ESCAPE '\\')",
-      "args": ["in-use", "%cell%"],
-      "fields": ["phase", "name"]
+      "input": "state = \"shared\" AND name ~ \"Cell\"",
+      "sql": "(LOWER(doc.state) = $1 AND LOWER(doc.name) LIKE $2 ESCAPE '\\')",
+      "args": ["shared", "%cell%"],
+      "fields": ["state", "name"]
     },
     {
       "name": "precedence is materialized in the output",
-      "input": "phase = \"in-use\" OR online = true AND cores > 8",
-      "sql": "(LOWER(inv.phase) = $1 OR (inv.online = $2 AND inv.cores > $3))",
-      "args": ["in-use", true, 8],
-      "fields": ["phase", "online", "cores"]
+      "input": "state = \"shared\" OR active = true AND words > 8",
+      "sql": "(LOWER(doc.state) = $1 OR (doc.active = $2 AND doc.words > $3))",
+      "args": ["shared", true, 8],
+      "fields": ["state", "active", "words"]
     },
     {
       "name": "parentheses",
-      "input": "(phase = \"in-use\" OR online = true) AND cores > 8",
-      "sql": "((LOWER(inv.phase) = $1 OR inv.online = $2) AND inv.cores > $3)",
-      "args": ["in-use", true, 8],
-      "fields": ["phase", "online", "cores"]
+      "input": "(state = \"shared\" OR active = true) AND words > 8",
+      "sql": "((LOWER(doc.state) = $1 OR doc.active = $2) AND doc.words > $3)",
+      "args": ["shared", true, 8],
+      "fields": ["state", "active", "words"]
     },
     {
       "name": "dynamic enum values are accepted when supplied",
-      "input": "rack = \"ASH1-R01\"",
-      "dynamic": { "rack": ["ASH1-R01", "ASH1-R02"] },
-      "sql": "LOWER(loc.name) = $1",
-      "args": ["ash1-r01"],
-      "fields": ["rack"]
+      "input": "team = \"DESIGN-A\"",
+      "dynamic": { "team": ["DESIGN-A", "DESI-R02"] },
+      "sql": "LOWER(grp.name) = $1",
+      "args": ["design-a"],
+      "fields": ["team"]
     },
     {
       "name": "a field referenced twice appears once in fields",
       "input": "name ~ \"a\" OR name ~ \"b\"",
-      "sql": "(LOWER(inv.name) LIKE $1 ESCAPE '\\' OR LOWER(inv.name) LIKE $2 ESCAPE '\\')",
+      "sql": "(LOWER(doc.name) LIKE $1 ESCAPE '\\' OR LOWER(doc.name) LIKE $2 ESCAPE '\\')",
       "args": ["%a%", "%b%"],
       "fields": ["name"]
     },

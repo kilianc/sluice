@@ -4,9 +4,9 @@ Sluice queries are predicates: comparisons joined by `AND`, `OR` and `NOT`, with
 parentheses where you want them.
 
 ```
-phase = "in-use" AND NOT online = true
-(rack ~ "ash1" OR rack ~ "chi1") AND cores >= 32
-os_age > "2 days"
+state = "shared" AND NOT active = true
+(team ~ "desi" OR team ~ "depl") AND words >= 32
+edited > "2 days"
 ```
 
 The field names are yours — they come from the schema the application declares,
@@ -30,8 +30,8 @@ Two rules surprise people, and both are deliberate:
 **Single quotes are not string delimiters.** `name = 'web-1'` is an error. A SQL
 quoting habit should not silently produce a valid-looking Sluice query.
 
-**A bare word is not a value.** `phase = in-use` is an error; write
-`phase = "in-use"`. This single rule is what removes the injection surface — an
+**A bare word is not a value.** `state = shared` is an error; write
+`state = "shared"`. This single rule is what removes the injection surface — an
 unrecognized token has nowhere to go except a diagnostic.
 
 ## Operators
@@ -48,7 +48,7 @@ list further.
 | `duration` | `<` `<=` `>` `>=` | measured as age, see below |
 | `timestamp` | `<` `<=` `>` `>=` | RFC 3339 |
 
-Operators do not need spaces around them: `phase="in-use"` and `phase = "in-use"`
+Operators do not need spaces around them: `state="shared"` and `state = "shared"`
 lex identically.
 
 `~` matches a substring anywhere in the value. Wildcards are not part of the
@@ -62,10 +62,10 @@ Tightest first: `NOT`, then `AND`, then `OR`. Both binary operators are
 left-associative, so
 
 ```
-phase = "in-use" OR online = true AND cores > 8
+state = "shared" OR active = true AND words > 8
 ```
 
-means `phase = "in-use" OR (online = true AND cores > 8)`. Parenthesize when you
+means `state = "shared" OR (active = true AND words > 8)`. Parenthesize when you
 mean otherwise. Writing two predicates side by side is not an implicit `AND`; it
 is an error.
 
@@ -74,7 +74,7 @@ nothing at all and lets the application decide what an absent filter means.
 
 ## Durations
 
-A `duration` field compares against an age, so `os_age > "2 days"` means "older
+A `duration` field compares against an age, so `edited > "2 days"` means "older
 than two days".
 
 ```
@@ -125,7 +125,7 @@ predicate into its `WHERE`. That constraint is the product: it is what keeps the
 language teachable in a tooltip.
 
 Deliberately not in v0.1, though each is defensible: value lists
-(`phase = ("a", "b")`), relative timestamps (`> "now-7d"`), free-text search
+(`state = ("a", "b")`), relative timestamps (`> "now-7d"`), free-text search
 across several fields at once, and `ORDER BY` expressions composed in the
 language rather than named in the schema.
 

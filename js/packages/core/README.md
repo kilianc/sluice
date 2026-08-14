@@ -9,12 +9,12 @@ pays nothing for them.
 import { createLanguage } from '@sluice/core'
 import { postgres, duckdb } from '@sluice/core/dialects'
 
-const lang = createLanguage(publicSchema, { dynamic: { rack: racks } })
+const lang = createLanguage(publicSchema, { dynamic: { team: teams } })
 
-lang.validate('phse = "x"')       // { ok: false, diagnostics: [{ code, message, span }] }
-lang.suggest('phase = ', 8)       // [{ text, kind, detail, replaceSpan }]
-lang.parse('phase = "in-use"')    // { ast, diagnostics }
-lang.compile('phase = "in-use"', duckdb)  // { sql, args, fields, ast }
+lang.validate('stat = "x"')       // { ok: false, diagnostics: [{ code, message, span }] }
+lang.suggest('state = ', 8)       // [{ text, kind, detail, replaceSpan }]
+lang.parse('state = "shared"')    // { ast, diagnostics }
+lang.compile('state = "shared"', duckdb)  // { sql, args, fields, ast }
 lang.compileAST(node, duckdb)     // the untrusted-AST entry point
 lang.orderBy('name', 'desc', duckdb)
 ```

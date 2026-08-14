@@ -35,7 +35,7 @@ const (
 type Operator string
 
 // EmitFunc is a host-supplied emitter for a field that is not a column
-// comparison — "is this machine running any operation" may be an EXISTS over a
+// comparison — "is this document running any operation" may be an EXISTS over a
 // JSONB column (AGENTS.md §8.4).
 //
 // Builder offers no way to write a value into SQL text, so invariant 1 holds by

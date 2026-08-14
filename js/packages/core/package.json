@@ -1,6 +1,6 @@
 {
   "name": "@sluice/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A configurable filter query language that compiles to SQL, with typed autocomplete from the same field declarations.",
   "keywords": [
     "sql",

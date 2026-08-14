@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sluice playground</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --fg: #1a1d21;
+        --muted: #6b7280;
+        --line: #e5e7eb;
+        --panel: #f7f8fa;
+        --accent: #2563eb;
+        --bad: #b91c1c;
+        --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1115;
+          --fg: #e6e8eb;
+          --muted: #9aa3af;
+          --line: #252a31;
+          --panel: #161a20;
+          --accent: #60a5fa;
+          --bad: #f87171;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main { max-width: 60rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+      h1 { font-size: 1.35rem; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
+      p.lede { color: var(--muted); margin: 0 0 1.5rem; }
+      #editor {
+        height: 96px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .examples { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0 1.5rem; }
+      .examples button {
+        font: 12px/1 var(--mono);
+        color: var(--fg);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.4rem 0.7rem;
+        cursor: pointer;
+      }
+      .examples button:hover { border-color: var(--accent); color: var(--accent); }
+      section { margin-top: 1.5rem; }
+      h2 {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        margin: 0 0 0.5rem;
+        font-weight: 600;
+      }
+      pre {
+        margin: 0;
+        padding: 0.85rem 1rem;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font: 13px/1.6 var(--mono);
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      pre.bad { color: var(--bad); }
+      table { border-collapse: collapse; width: 100%; font: 13px/1.5 var(--mono); }
+      th, td {
+        text-align: left;
+        padding: 0.4rem 0.6rem;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+      }
+      th { color: var(--muted); font-weight: 600; }
+      .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+      footer { margin-top: 2.5rem; color: var(--muted); font-size: 13px; }
+      code { font-family: var(--mono); }
+      .count { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sluice playground</h1>
+      <p class="lede">
+        The filter compiles in this page and runs against a Postgres that is also in
+        this page. No server is involved — this is
+        <a href="https://github.com/kilianc/sluice/blob/main/docs/security.md">Mode A</a>.
+      </p>
+
+      <div id="editor"></div>
+      <div class="examples" id="examples"></div>
+
+      <section>
+        <h2>Compiled SQL</h2>
+        <pre id="sql">starting…</pre>
+      </section>
+
+      <section>
+        <h2>Arguments</h2>
+        <pre id="args">[]</pre>
+      </section>
+
+      <section>
+        <h2>Rows <span class="count" id="count"></span></h2>
+        <div class="scroll"><table id="rows"></table></div>
+      </section>
+
+      <footer>
+        Everything you type stays here. The schema is the same declaration that
+        drives the completions, the diagnostics and the highlighting.
+      </footer>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <script>
+      // Monaco ships an AMD bundle; everything else on this page is ESM. Load it
+      // first and hand the namespace to the module below through a promise.
+      require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } })
+      window.monacoReady = new Promise((resolve) => require(['vs/editor/editor.main'], () => resolve(window.monaco)))
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

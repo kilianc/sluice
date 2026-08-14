@@ -14,13 +14,13 @@ JSON is canonical:
 
 ```json
 {
-  "name": "machines",
+  "name": "documents",
   "options": { "caseInsensitive": true, "maxDepth": 16, "fallbackFields": ["name"] },
   "fields": [
-    { "name": "phase", "type": "enum", "column": "inv.phase",
-      "values": ["in-use", "not-in-use"], "description": "Lifecycle phase" }
+    { "name": "state", "type": "enum", "column": "doc.state",
+      "values": ["shared", "restricted"], "description": "Lifecycle state" }
   ],
-  "sorts": [ { "key": "name", "sql": "inv.name" } ]
+  "sorts": [ { "key": "name", "sql": "doc.name" } ]
 }
 ```
 
@@ -32,13 +32,13 @@ The Go struct form is equivalent and behaves identically:
 
 ```go
 schema := sluice.Schema{
-    Name:    "machines",
+    Name:    "documents",
     Options: sluice.Options{FallbackFields: []string{"name"}},
     Fields: []sluice.Field{
-        {Name: "phase", Type: sluice.TypeEnum, Column: "inv.phase",
-            Values: []string{"in-use", "not-in-use"}, Description: "Lifecycle phase"},
+        {Name: "state", Type: sluice.TypeEnum, Column: "doc.state",
+            Values: []string{"shared", "restricted"}, Description: "Lifecycle state"},
     },
-    Sorts: []sluice.Sort{{Key: "name", SQL: "inv.name"}},
+    Sorts: []sluice.Sort{{Key: "name", SQL: "doc.name"}},
 }
 c, err := sluice.New(schema, postgres.Dialect)
 ```
@@ -61,7 +61,7 @@ JSON.
 
 ¹ unless the field carries a custom emitter (below).
 
-`column` is a SQL expression, not just a column name — `inv.metadata ->> 'ip'` and
+`column` is a SQL expression, not just a column name — `doc.metadata ->> 'ip'` and
 `LOWER(t.name)` are fine. It is emitted verbatim, so it must be yours.
 
 `and`, `or`, `not`, `true` and `false` are reserved and cannot be field names.
@@ -81,14 +81,14 @@ never by the caller, because the input arrives from a browser.
 
 ## Enums, static and dynamic
 
-A static enum constrains its values: `phase = "bogus"` is `invalid_value_for_field`,
+A static enum constrains its values: `state = "bogus"` is `invalid_value_for_field`,
 and the diagnostic lists what is permitted.
 
-A dynamic enum — racks, tenants, anything that comes from the database rather
+A dynamic enum — teams, tenants, anything that comes from the database rather
 than the source — has its values supplied per request:
 
 ```go
-req := c.WithDynamic(map[string][]string{"rack": racks})
+req := c.WithDynamic(map[string][]string{"team": teams})
 res, err := req.Compile(input)
 ```
 
@@ -96,7 +96,7 @@ res, err := req.Compile(input)
 for concurrent use, and never caches the values. A dynamic field whose values
 were not supplied accepts any string and offers no completions — it does not
 error, because the server is the authority on what exists and a stale client list
-should not reject a real rack.
+should not reject a real team.
 
 ## The browser-facing schema
 
@@ -104,7 +104,7 @@ should not reject a real rack.
 descriptions — and removes `column` and `sorts[].sql`:
 
 ```go
-pub := c.PublicSchema(map[string][]string{"rack": racks})
+pub := c.PublicSchema(map[string][]string{"team": teams})
 json.NewEncoder(w).Encode(pub)   // GET /sluice/schema.json
 ```
 
@@ -125,7 +125,7 @@ browser — see [security.md](security.md) for when that is the right thing to w
 `ORDER BY` keys are named, never composed from input:
 
 ```go
-order, err := c.OrderBy("name", sluice.Desc)  // ORDER BY inv.name DESC NULLS LAST
+order, err := c.OrderBy("name", sluice.Desc)  // ORDER BY doc.name DESC NULLS LAST
 ```
 
 An unknown key is `unknown_sort_key`. The `sql` may be any expression, including
@@ -134,16 +134,16 @@ terrible thing to accept from a query string.
 
 ## Custom emitters
 
-Some predicates are not a column comparison. "Is this machine running any
-operation" may be an `EXISTS` over a JSONB column; "is it online" may be a
-computation over a heartbeat timestamp. A field can therefore carry an emitter
+Some predicates are not a column comparison. "Is this document running any
+operation" may be an `EXISTS` over a JSONB column; "is it active" may be a
+computation over a last-opened timestamp. A field can therefore carry an emitter
 instead of a `column`:
 
 ```go
 {Name: "operation", Type: sluice.TypeString, Operators: []string{"=", "!="}, Emit: operationEmitter}
 
 const inProgress = "op.payload ->> 'status' = 'in-progress'"
-const each = "EXISTS (SELECT 1 FROM jsonb_each(inv.operations) AS op(name, payload) WHERE "
+const each = "EXISTS (SELECT 1 FROM jsonb_each(doc.operations) AS op(name, payload) WHERE "
 
 func operationEmitter(b *sluice.Builder, op sluice.Operator, v sluice.Value) error {
     if v.String() == "any" {

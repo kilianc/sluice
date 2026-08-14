@@ -36,8 +36,8 @@ func exchange(t *testing.T, lines ...string) []map[string]any {
 
 func TestAdapterAnswersInOrder(t *testing.T) {
 	resps := exchange(t,
-		`{"id":"a","op":"compile","schema":"machines","dialect":"postgres","input":"phase = \"in-use\""}`,
-		`{"id":"b","op":"compile","schema":"machines","dialect":"duckdb","input":"online = true"}`,
+		`{"id":"a","op":"compile","schema":"documents","dialect":"postgres","input":"state = \"shared\""}`,
+		`{"id":"b","op":"compile","schema":"documents","dialect":"duckdb","input":"active = true"}`,
 		`{"id":"c","op":"lex","input":"a=1"}`,
 	)
 	for i, want := range []string{"a", "b", "c"} {
@@ -45,18 +45,18 @@ func TestAdapterAnswersInOrder(t *testing.T) {
 			t.Errorf("response %d has id %v, want %s", i, resps[i]["id"], want)
 		}
 	}
-	if resps[0]["sql"] != "LOWER(inv.phase) = $1" {
+	if resps[0]["sql"] != "LOWER(doc.state) = $1" {
 		t.Errorf("postgres sql = %v", resps[0]["sql"])
 	}
-	if resps[1]["sql"] != "inv.online = ?" {
+	if resps[1]["sql"] != "doc.active = ?" {
 		t.Errorf("duckdb sql = %v", resps[1]["sql"])
 	}
 }
 
 func TestAdapterNeverReturnsSQLWithDiagnostics(t *testing.T) {
 	resps := exchange(t,
-		`{"id":"a","op":"compile","schema":"machines","input":"phse = \"x\""}`,
-		`{"id":"b","op":"compile","schema":"machines","input":"1=1"}`,
+		`{"id":"a","op":"compile","schema":"documents","input":"stat = \"x\""}`,
+		`{"id":"b","op":"compile","schema":"documents","input":"1=1"}`,
 	)
 	for _, resp := range resps {
 		diags, _ := resp["diagnostics"].([]any)
@@ -94,25 +94,25 @@ func TestAdapterAcceptsAnInlineSchema(t *testing.T) {
 func TestAdapterCompilesATransportedAST(t *testing.T) {
 	// AGENTS.md §12 Mode B: the client sends the AST, the server compiles it
 	// under its own schema.
-	resps := exchange(t, `{"id":"a","op":"compile","schema":"machines","dialect":"postgres",`+
-		`"ast":{"kind":"predicate","field":"phase","op":"=","value":{"type":"string","value":"in-use"}}}`)
-	if resps[0]["sql"] != "LOWER(inv.phase) = $1" {
+	resps := exchange(t, `{"id":"a","op":"compile","schema":"documents","dialect":"postgres",`+
+		`"ast":{"kind":"predicate","field":"state","op":"=","value":{"type":"string","value":"shared"}}}`)
+	if resps[0]["sql"] != "LOWER(doc.state) = $1" {
 		t.Errorf("sql = %v", resps[0]["sql"])
 	}
 }
 
 func TestAdapterReportsDynamicValues(t *testing.T) {
 	resps := exchange(t,
-		`{"id":"a","op":"suggest","schema":"machines","input":"rack = \"","cursor":8,`+
-			`"dynamic":{"rack":["ASH1-R01","ASH2-R01"]}}`,
-		`{"id":"b","op":"schema","schema":"machines","dynamic":{"rack":["ASH1-R01"]}}`,
+		`{"id":"a","op":"suggest","schema":"documents","input":"team = \"","cursor":8,`+
+			`"dynamic":{"team":["DESIGN-A","DEPLOY-A"]}}`,
+		`{"id":"b","op":"schema","schema":"documents","dynamic":{"team":["DESIGN-A"]}}`,
 	)
 	sugg, _ := resps[0]["suggestions"].([]any)
 	if len(sugg) != 2 {
-		t.Errorf("suggestions = %v, want both racks", sugg)
+		t.Errorf("suggestions = %v, want both teams", sugg)
 	}
 	pub, _ := resps[1]["schema"].(map[string]any)
-	if strings.Contains(mustString(t, pub), "inv.phase") {
+	if strings.Contains(mustString(t, pub), "doc.state") {
 		t.Errorf("the browser-facing schema leaked column SQL: %v", pub)
 	}
 }

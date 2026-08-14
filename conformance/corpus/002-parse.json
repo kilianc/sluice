@@ -1,42 +1,42 @@
 {
   "version": 1,
   "op": "parse",
-  "schema": "machines",
+  "schema": "documents",
   "description": "AST structure, precedence and associativity. Spans on non-predicate nodes are optional and are not asserted here.",
   "cases": [
     {
       "name": "simple predicate",
-      "input": "phase = \"in-use\"",
+      "input": "state = \"shared\"",
       "ast": {
         "kind": "predicate",
-        "field": "phase",
+        "field": "state",
         "op": "=",
-        "value": { "type": "string", "value": "in-use" },
+        "value": { "type": "string", "value": "shared" },
         "span": [0, 16]
       }
     },
     {
       "name": "field names resolve case-insensitively and normalize to lowercase",
-      "input": "PHASE = \"in-use\"",
+      "input": "STATE = \"shared\"",
       "ast": {
         "kind": "predicate",
-        "field": "phase",
+        "field": "state",
         "op": "=",
-        "value": { "type": "string", "value": "in-use" },
+        "value": { "type": "string", "value": "shared" },
         "span": [0, 16]
       }
     },
     {
       "name": "AND binds tighter than OR",
-      "input": "phase = \"in-use\" OR online = true AND cores > 8",
+      "input": "state = \"shared\" OR active = true AND words > 8",
       "ast": {
         "kind": "binary",
         "op": "or",
         "left": {
           "kind": "predicate",
-          "field": "phase",
+          "field": "state",
           "op": "=",
-          "value": { "type": "string", "value": "in-use" },
+          "value": { "type": "string", "value": "shared" },
           "span": [0, 16]
         },
         "right": {
@@ -44,14 +44,14 @@
           "op": "and",
           "left": {
             "kind": "predicate",
-            "field": "online",
+            "field": "active",
             "op": "=",
             "value": { "type": "boolean", "value": true },
             "span": [20, 33]
           },
           "right": {
             "kind": "predicate",
-            "field": "cores",
+            "field": "words",
             "op": ">",
             "value": { "type": "number", "value": 8 },
             "span": [38, 47]
@@ -61,7 +61,7 @@
     },
     {
       "name": "AND is left-associative",
-      "input": "phase = \"in-use\" AND online = true AND cores > 8",
+      "input": "state = \"shared\" AND active = true AND words > 8",
       "ast": {
         "kind": "binary",
         "op": "and",
@@ -70,14 +70,14 @@
           "op": "and",
           "left": {
             "kind": "predicate",
-            "field": "phase",
+            "field": "state",
             "op": "=",
-            "value": { "type": "string", "value": "in-use" },
+            "value": { "type": "string", "value": "shared" },
             "span": [0, 16]
           },
           "right": {
             "kind": "predicate",
-            "field": "online",
+            "field": "active",
             "op": "=",
             "value": { "type": "boolean", "value": true },
             "span": [21, 34]
@@ -85,7 +85,7 @@
         },
         "right": {
           "kind": "predicate",
-          "field": "cores",
+          "field": "words",
           "op": ">",
           "value": { "type": "number", "value": 8 },
           "span": [39, 48]
@@ -94,12 +94,12 @@
     },
     {
       "name": "NOT binds tighter than AND",
-      "input": "NOT online = true",
+      "input": "NOT active = true",
       "ast": {
         "kind": "not",
         "expr": {
           "kind": "predicate",
-          "field": "online",
+          "field": "active",
           "op": "=",
           "value": { "type": "boolean", "value": true },
           "span": [4, 17]
@@ -108,7 +108,7 @@
     },
     {
       "name": "parentheses override precedence",
-      "input": "(phase = \"in-use\" OR online = true) AND cores > 8",
+      "input": "(state = \"shared\" OR active = true) AND words > 8",
       "ast": {
         "kind": "binary",
         "op": "and",
@@ -117,14 +117,14 @@
           "op": "or",
           "left": {
             "kind": "predicate",
-            "field": "phase",
+            "field": "state",
             "op": "=",
-            "value": { "type": "string", "value": "in-use" },
+            "value": { "type": "string", "value": "shared" },
             "span": [1, 17]
           },
           "right": {
             "kind": "predicate",
-            "field": "online",
+            "field": "active",
             "op": "=",
             "value": { "type": "boolean", "value": true },
             "span": [21, 34]
@@ -132,7 +132,7 @@
         },
         "right": {
           "kind": "predicate",
-          "field": "cores",
+          "field": "words",
           "op": ">",
           "value": { "type": "number", "value": 8 },
           "span": [40, 49]
@@ -141,10 +141,10 @@
     },
     {
       "name": "duration literals stay strings in the AST and coerce at emit time",
-      "input": "os_age > \"2 days\"",
+      "input": "edited > \"2 days\"",
       "ast": {
         "kind": "predicate",
-        "field": "os_age",
+        "field": "edited",
         "op": ">",
         "value": { "type": "string", "value": "2 days" },
         "span": [0, 17]

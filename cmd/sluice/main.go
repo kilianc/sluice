@@ -67,7 +67,7 @@ func newFlags(name string, args []string) (*commonFlags, []string, error) {
 	f := &commonFlags{set: flag.NewFlagSet(name, flag.ContinueOnError)}
 	f.set.StringVar(&f.schema, "schema", "", "path to a schema JSON file")
 	f.set.StringVar(&f.dialect, "dialect", "postgres", "sql dialect: postgres or duckdb")
-	f.set.StringVar(&f.dynamic, "dynamic", "", `dynamic enum values, e.g. {"rack":["ash1-r01"]}`)
+	f.set.StringVar(&f.dynamic, "dynamic", "", `dynamic enum values, e.g. {"team":["design-a"]}`)
 	if err := f.set.Parse(args); err != nil {
 		return nil, nil, err
 	}

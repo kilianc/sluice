@@ -34,7 +34,7 @@ extraction checkable rather than a matter of memory.
 
 Four of its predicates are not a column comparison — an `EXISTS` over a JSONB
 column, a name that selects between two columns by its value, a derived
-comparison over a heartbeat timestamp, and a comparison between two columns.
+comparison over a last-opened timestamp, and a comparison between two columns.
 Treat them as an acceptance test on the emitter interface rather than as code to
 port: if they express cleanly through `Builder`, the escape hatch is sufficient.
 If they do not, the interface needs rethinking before v0.1.0 rather than after a
@@ -50,7 +50,7 @@ The current compiler interpolates. Measured against the live implementation:
 
 | input | current output |
 |---|---|
-| `phase = "in-use" OR EXISTS (SELECT 1 FROM machine)` | `LOWER(phase) = 'in-use' OR exists ( select 1 from machine )` |
+| `state = "shared" OR EXISTS (SELECT 1 FROM document)` | `LOWER(state) = 'shared' OR exists ( select 1 from document )` |
 | `1=1` | `1 = 1` |
 | `bogus_column = "x"` | `bogus_column = 'x'` |
 | `name ~ "%"` | `LIKE '%%%'` — matches every row |
@@ -85,7 +85,7 @@ cannot own process-global state or panic on caller input. Becomes
 
 Fields become configuration — a native struct or the canonical JSON of `AGENTS.md`
 §4.3. Host concepts leave the library entirely; the awkward ones (`operation` as
-an `EXISTS` over JSONB, `blocked`, `online`) survive the move as custom emitters
+an `EXISTS` over JSONB, `blocked`, `active`) survive the move as custom emitters
 (§8.4), which is the feature that proves the escape hatch is sufficient.
 
 ### 2.5 Drift
@@ -111,7 +111,7 @@ Not everything carries over unchanged. These are decisions, not accidents:
 
 ### 2.7 Deferred, on purpose
 
-Value lists (`phase = ("a", "b")`), relative timestamp literals (`> "now-7d"`),
+Value lists (`state = ("a", "b")`), relative timestamp literals (`> "now-7d"`),
 free-text search across a designated set of fields, and `ORDER BY` expressions
 composed in the language rather than named in the schema. Each is defensible; none
 belongs in v0.1 while the parser is still settling.
@@ -162,14 +162,14 @@ compiling for DuckDB-WASM pays nothing for Monaco.
 schema, err := sluice.LoadSchema(jsonBytes)      // or a native sluice.Schema
 c, err := sluice.New(schema, postgres.Dialect)
 
-res, err := c.Compile(`phase = "in-use" AND rack ~ "ash1"`)
-res.SQL      // (LOWER(inv.phase) = $1 AND LOWER(loc.name) LIKE $2 ESCAPE '\')
-res.Args     // []any{"in-use", "%ash1%"}
-res.Fields   // []string{"phase", "rack"} — for join pruning
+res, err := c.Compile(`state = "shared" AND team ~ "desi"`)
+res.SQL      // (LOWER(doc.state) = $1 AND LOWER(grp.name) LIKE $2 ESCAPE '\')
+res.Args     // []any{"shared", "%desi%"}
+res.Fields   // []string{"state", "team"} — for join pruning
 res.AST      // *ast.Node
 
 res, err = c.CompileAST(node)                    // untrusted-AST entry point (§6)
-res, err = c.WithDynamic(map[string][]string{"rack": racks}).Compile(input)
+res, err = c.WithDynamic(map[string][]string{"team": teams}).Compile(input)
 
 diags := c.Validate(input)                       // all diagnostics, with spans
 sugg  := c.Suggest(input, cursor)
@@ -187,7 +187,7 @@ lightweight view rather than mutating.
 import { createLanguage } from '@sluice/core'
 import { postgres, duckdb } from '@sluice/core/dialects'
 
-const lang = createLanguage(publicSchema, { dynamic: { rack: racks } })
+const lang = createLanguage(publicSchema, { dynamic: { team: teams } })
 
 lang.validate(input)              // { ok, diagnostics: [{ code, message, span }] }
 lang.suggest(input, cursor)       // [{ text, kind, detail, replaceSpan }]
@@ -306,7 +306,7 @@ exercise exists to avoid.
   relative form (`> "now-7d"`) deferred in §2.7 is what people will actually want;
   the question is whether it belongs in the language or in the editor as an
   expansion.
-- **Dynamic value size.** Rack lists run to thousands of entries. Shipping them
+- **Dynamic value size.** Team lists run to thousands of entries. Shipping them
   inline in `schema.json` is fine at the current scale and will not stay fine;
   a completion endpoint is the likely answer, but not before someone feels it.
 - **Collation.** ASCII-only case folding is specified because it is the only rule
