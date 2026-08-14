@@ -15,7 +15,7 @@ export function monarchTokens(schema) {
     ignoreCase: true,
     keywords: ['and', 'or', 'not', 'true', 'false'],
     fields,
-    bteamets: [{ open: '(', close: ')', token: 'delimiter.parenthesis' }],
+    brackets: [{ open: '(', close: ')', token: 'delimiter.parenthesis' }],
     tokenizer: {
       root: [
         [
@@ -32,7 +32,7 @@ export function monarchTokens(schema) {
         [/"([^"\\]|\\.)*$/, 'string.invalid'], // unterminated
         [/"/, { token: 'string.quote', next: '@string' }],
         [/!=|!~|<=|>=|[=~<>]/, 'operator'],
-        [/[()]/, '@bteamets'],
+        [/[()]/, '@brackets'],
         [/\s+/, 'white'],
         [/./, 'invalid'],
       ],
@@ -46,9 +46,9 @@ export function monarchTokens(schema) {
   }
 }
 
-/** The language configuration: bteamets, auto-closing, and no comment syntax. */
+/** The language configuration: brackets, auto-closing, and no comment syntax. */
 export const languageConfiguration = {
-  bteamets: [['(', ')']],
+  brackets: [['(', ')']],
   autoClosingPairs: [
     { open: '(', close: ')' },
     { open: '"', close: '"' },

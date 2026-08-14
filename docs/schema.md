@@ -134,8 +134,8 @@ terrible thing to accept from a query string.
 
 ## Custom emitters
 
-Some predicates are not a column comparison. "Is this document running any
-operation" may be an `EXISTS` over a JSONB column; "is it active" may be a
+Some predicates are not a column comparison. "Does this document have work in
+progress" may be an `EXISTS` over a JSONB column; "is it active" may be a
 computation over a last-opened timestamp. A field can therefore carry an emitter
 instead of a `column`:
 

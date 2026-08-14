@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { createLanguage } from '../../core/src/index.js'
-import { register, toCodepoint, toUTF16 } from '../src/index.js'
+import { register, toCodepoint, toUTF16, monarchTokens } from '../src/index.js'
+import { languageConfiguration } from '../src/monarch.js'
 import { createFakeMonaco } from './fake-monaco.js'
 
 const schema = {
@@ -143,6 +144,28 @@ test('highlighting knows which identifiers are fields', () => {
   const monarch = registered.monarch.get('sluice')
   assert.deepEqual(monarch.fields, ['name', 'state', 'active'])
   assert.ok(monarch.keywords.includes('and'))
+})
+
+test('every @reference in the tokenizer resolves', () => {
+  // Monarch resolves "@name" against the config, and silently emits it as a
+  // literal token type when there is no such key — so a typo in "brackets"
+  // costs you bracket matching with no error anywhere. A rename once turned
+  // "brackets" into "bteamets" (it contains a word that was being replaced) and
+  // every test still passed.
+  const tokens = monarchTokens(schema)
+  const special = new Set(['@pop', '@push', '@popall', '@default', '@rematch'])
+  const refs = JSON.stringify(tokens.tokenizer).match(/@[A-Za-z_]+/g) ?? []
+  for (const ref of refs) {
+    if (special.has(ref)) continue
+    const key = ref.slice(1)
+    assert.ok(
+      key in tokens || key in tokens.tokenizer,
+      `${ref} is referenced by a rule but defined nowhere`,
+    )
+  }
+  assert.ok(Array.isArray(tokens.brackets), 'brackets must be spelled the way monaco reads it')
+  assert.ok(Array.isArray(languageConfiguration.brackets))
+  assert.ok(languageConfiguration.autoClosingPairs.some((p) => p.open === '"'))
 })
 
 test('dispose removes the providers and clears the markers', () => {

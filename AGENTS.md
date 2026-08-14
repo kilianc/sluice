@@ -359,8 +359,8 @@ than two days":
 
 ### 8.4 Custom emitters
 
-Some predicates are not a column comparison — "is this document running any
-operation" may be an `EXISTS` over a JSONB column. A field **MAY** therefore carry
+Some predicates are not a column comparison — "does this document have work in
+progress" may be an `EXISTS` over a JSONB column. A field **MAY** therefore carry
 a host-supplied emitter instead of a `column`:
 
 ```go

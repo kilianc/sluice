@@ -99,7 +99,7 @@ container beside the command:
 ```
 
 The runner uses the host command when it works and the image when it does not,
-mounting the repository read-only. That is how the JS adapter runs on a document
+mounting the repository read-only. That is how the JS adapter runs on a host
 with no Node installed.
 
 ## Done
