@@ -36,7 +36,7 @@ jobs:
         run: go test -race ./...
 
       - name: js test
-        run: node --test js/packages/core/test/*.test.js js/packages/monaco/test/*.test.js
+        run: node --test js/packages/core/test/*.test.js js/packages/monaco/test/*.test.js js/packages/codemirror/test/*.test.js
 
       - name: every registered adapter actually ran
         run: |

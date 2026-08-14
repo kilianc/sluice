@@ -18,6 +18,7 @@ go get github.com/kilianc/sluice
 ```bash
 npm install @sluice/core          # the language
 npm install @sluice/monaco        # optional: the Monaco binding
+npm install @sluice/codemirror    # …or the CodeMirror 6 one
 ```
 
 ## Compile a query
@@ -144,15 +145,16 @@ reference source. [`PLAN.md`](PLAN.md) is the roadmap and the decision log.
 
 ## Status
 
-Pre-release, working toward v0.1.0. The Go reference and `@sluice/core` both pass
-the whole corpus.
+Pre-release, working toward v0.2.0. Two implementations — the Go reference and
+`@sluice/core` — pass the whole corpus, in four dialects.
 
 ```bash
-make test          # Go, then the JS package
+make test          # Go, then every JS package
 make conformance   # the corpus against every implementation
+make playground    # the demo, at http://localhost:8901/playground/
 ```
 
-Node is not required on your document: the JS adapter and tests run in the pinned
+Node is not required on your host: the JS adapter and tests run in the pinned
 image from [`tools/Dockerfile`](tools/Dockerfile) when no runtime is available.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) has the versioning policy and the rule that
 keeps the implementations honest.

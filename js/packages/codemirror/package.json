@@ -1,0 +1,28 @@
+{
+  "name": "@sluice/codemirror",
+  "version": "0.2.0",
+  "description": "CodeMirror 6 sources for Sluice: completions, diagnostics and highlighting from the same schema that drives the compiler.",
+  "keywords": ["sluice", "codemirror", "codemirror6", "filter", "autocomplete", "query-language"],
+  "license": "MIT",
+  "homepage": "https://github.com/kilianc/sluice",
+  "bugs": "https://github.com/kilianc/sluice/issues",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": ["src", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "peerDependencies": {
+    "@sluice/core": "^0.2.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kilianc/sluice.git",
+    "directory": "js/packages/codemirror"
+  }
+}

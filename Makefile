@@ -21,7 +21,7 @@ test-go:
 	go test ./...
 
 test-js: tools
-	$(NODE) --test js/packages/core/test/core.test.js js/packages/monaco/test/monaco.test.js
+	$(NODE) --test js/packages/core/test/*.test.js js/packages/monaco/test/*.test.js js/packages/codemirror/test/*.test.js
 
 race:
 	go test -race ./...

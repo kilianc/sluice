@@ -5,8 +5,8 @@ filter bar. `@sluice/core` gives you the two things an editor needs — completi
 at a cursor, and diagnostics with spans — and knows nothing about any particular
 editor.
 
-If you use Monaco, [`@sluice/monaco`](../js/packages/monaco/) is the whole
-integration:
+If you use Monaco or CodeMirror, the binding is the whole integration —
+[`@sluice/monaco`](../js/packages/monaco/):
 
 ```js
 import * as monaco from 'monaco-editor'
@@ -17,6 +17,19 @@ const language = createLanguage(await (await fetch('/sluice/schema.json')).json(
 register(monaco, { language })
 
 monaco.editor.create(element, { value: 'state = "shared"', language: 'sluice' })
+```
+
+…and [`@sluice/codemirror`](../js/packages/codemirror/), which exports sources
+rather than extensions because you already assemble CodeMirror yourself:
+
+```js
+import { completionSource, lintSource, streamParser } from '@sluice/codemirror'
+
+extensions: [
+  StreamLanguage.define(streamParser(language)),
+  autocompletion({ override: [completionSource(language)] }),
+  linter(lintSource(language)),
+]
 ```
 
 Completions, error underlines, highlighting and hovers are live from the first
@@ -97,9 +110,11 @@ Show `message`; branch on `code`, which is stable API. `suggestions` on an
 
 ## Offsets
 
-**Spans and cursors are codepoint offsets. Editors are usually not.** Monaco and
-CodeMirror 5 count UTF-16 code units, so an emoji or an astral character in a
-filter value will misplace every marker after it unless you convert:
+**Spans and cursors are codepoint offsets. Editors are not.** Monaco counts
+UTF-16 code units, and so does CodeMirror 6 — its positions are offsets into a
+JavaScript string, so `EditorState.create({doc: 'a🌍b'}).doc.length` is 4 rather
+than 3. An emoji in a filter value therefore misplaces every marker after it by
+one per astral character, unless you convert:
 
 ```js
 const toCodepoint = (text, utf16) => Array.from(text.slice(0, utf16)).length
@@ -108,7 +123,7 @@ const toUTF16 = (text, codepoint) =>
   Array.from(text).slice(0, codepoint).join('').length
 ```
 
-CodeMirror 6 counts codepoints already and needs neither.
+Both bindings do this for you at every boundary and export the helpers.
 
 ## Two things the binding does that are easy to miss
 
