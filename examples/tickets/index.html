@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tickets — a Sluice filter bar over Postgres</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --line: #e4e4e7;
+        --muted: #71717a;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 3rem 1.5rem;
+        background: #fff;
+        color: #09090b;
+        font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      main { max-width: 60rem; margin: 0 auto; }
+      h1 { font-size: 1.4rem; letter-spacing: -0.02em; margin: 0 0 0.25rem; }
+      p.lede { color: var(--muted); margin: 0 0 1.75rem; }
+      .bar {
+        display: flex; align-items: center; gap: 0.7rem;
+        height: 3.25rem; padding: 0 1rem;
+        border: 1px solid #d4d4d8; border-radius: 12px;
+      }
+      .bar.focused { border-color: #09090b; box-shadow: 0 0 0 3px rgba(9,9,11,.07); }
+      #editor { flex: 1; height: 1.5rem; min-width: 0; }
+      .count { font: 0.78rem/1 var(--mono); color: var(--muted); white-space: nowrap; }
+      .count.bad { color: #dc2626; }
+      table { border-collapse: collapse; width: 100%; font: 0.82rem/1.5 var(--mono); margin-top: 1.5rem; }
+      th, td { text-align: left; padding: 0.55rem 0.9rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+      th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); background: #fafafa; }
+      pre {
+        margin: 1.5rem 0 0; padding: 0.9rem 1.1rem; border: 1px solid var(--line);
+        border-radius: 10px; background: #fafafa; font: 0.8rem/1.6 var(--mono);
+        white-space: pre-wrap; word-break: break-word;
+      }
+      .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
+      .chips button {
+        font: 0.76rem/1 var(--mono); color: var(--muted); background: #fff;
+        border: 1px solid var(--line); border-radius: 999px; padding: 0.4rem 0.75rem; cursor: pointer;
+      }
+      .chips button:hover { border-color: #09090b; color: #09090b; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tickets</h1>
+      <p class="lede">
+        The filter bar is driven by <code>/sluice/schema.json</code>; the rows come from
+        Postgres via <code>/api/tickets</code>.
+      </p>
+
+      <div class="bar" id="bar">
+        <div id="editor"></div>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="chips" id="examples"></div>
+
+      <table id="rows"></table>
+      <pre id="sql">…</pre>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <script>
+      require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" } });
+      window.monacoReady = new Promise((r) => require(["vs/editor/editor.main"], () => r(window.monaco)));
+    </script>
+    <script type="module">
+      import { createLanguage } from '/js/packages/core/src/index.js'
+      import { register } from '/js/packages/monaco/src/index.js'
+
+      const $ = (id) => document.getElementById(id)
+
+      // Step 1: the schema the server publishes. No column SQL in it.
+      const language = createLanguage(await (await fetch('/sluice/schema.json')).json())
+
+      // Step 2: hand it to the editor binding.
+      const monaco = await window.monacoReady
+      register(monaco, { language })
+
+      monaco.editor.defineTheme('sluice', {
+        base: 'vs',
+        inherit: true,
+        colors: { 'editor.background': '#00000000', focusBorder: '#00000000' },
+        rules: [],
+      })
+
+      const editor = monaco.editor.create($('editor'), {
+        value: 'status = "open" AND overdue = true',
+        language: 'sluice',
+        theme: 'sluice',
+        automaticLayout: true,
+        fontSize: 14,
+        lineHeight: 24,
+        lineNumbers: 'off',
+        minimap: { enabled: false },
+        scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
+        overviewRulerLanes: 0,
+        folding: false,
+        glyphMargin: false,
+        lineDecorationsWidth: 0,
+        renderLineHighlight: 'none',
+        contextmenu: false,
+        scrollBeyondLastLine: false,
+        wordWrap: 'off',
+        fixedOverflowWidgets: true,
+      })
+
+      editor.onDidFocusEditorText(() => $('bar').classList.add('focused'))
+      editor.onDidBlurEditorText(() => $('bar').classList.remove('focused'))
+
+      for (const text of [
+        'status = "open" AND overdue = true',
+        'assignee ~ "kim" AND comments > 2',
+        'age > "30 days" AND status != "closed"',
+        'source = "pagerduty" AND priority <= 2',
+        'team = "platform"',
+      ]) {
+        const b = document.createElement('button')
+        b.textContent = text
+        b.onclick = () => { editor.setValue(text); editor.focus() }
+        $('examples').append(b)
+      }
+
+      // Step 3: send the filter to the server, which compiles it again under
+      // its own schema. The client's compile is for feedback, not for trust.
+      async function run() {
+        const filter = editor.getValue()
+        const res = await fetch('/api/tickets?filter=' + encodeURIComponent(filter))
+        const body = await res.json()
+
+        if (!res.ok) {
+          $('count').textContent = body.error?.code ?? 'error'
+          $('count').className = 'count bad'
+          $('sql').textContent = body.error ? `${body.error.code}: ${body.error.message}` : 'error'
+          $('rows').innerHTML = ''
+          return
+        }
+
+        $('count').className = 'count'
+        $('count').textContent = `${body.rows.length} tickets`
+        $('sql').textContent =
+          (body.sql || '(no predicate)') +
+          '\nargs   ' + JSON.stringify(body.args) +
+          '\nfields ' + JSON.stringify(body.fields)
+
+        const table = $('rows')
+        table.innerHTML = ''
+        if (body.rows.length === 0) return
+        const cols = ['title', 'status', 'priority', 'assignee', 'team', 'comments']
+        const head = table.createTHead().insertRow()
+        for (const c of cols) {
+          const th = document.createElement('th')
+          th.textContent = c
+          head.append(th)
+        }
+        const tbody = table.createTBody()
+        for (const row of body.rows) {
+          const tr = tbody.insertRow()
+          for (const c of cols) tr.insertCell().textContent = String(row[c])
+        }
+      }
+
+      let timer
+      editor.onDidChangeModelContent(() => {
+        clearTimeout(timer)
+        timer = setTimeout(run, 150)
+      })
+      await run()
+    </script>
+  </body>
+</html>

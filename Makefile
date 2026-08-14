@@ -61,9 +61,8 @@ site-build:
 	mkdir -p $(SITE_OUT)
 	cp site/index.html site/style.css site/app.js $(SITE_OUT)/
 	cp -R js $(SITE_OUT)/js
-	cp -R docs $(SITE_OUT)/docs
+	cd site/build && go run . -root ../.. -out ../../$(SITE_OUT)/docs
 	cp -R conformance $(SITE_OUT)/conformance
-	cp AGENTS.md README.md PLAN.md CONTRIBUTING.md LICENSE $(SITE_OUT)/
 
 site: site-build
 	@echo "http://localhost:8903/"

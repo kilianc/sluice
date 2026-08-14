@@ -132,6 +132,7 @@ That constraint is what keeps it small enough to be worth depending on.
 
 | | |
 |---|---|
+| [tutorial-postgres.md](docs/tutorial-postgres.md) | **start here** — a filter bar over Postgres, step by step |
 | [language.md](docs/language.md) | the query language, in full |
 | [schema.md](docs/schema.md) | declaring fields, dynamic enums, custom emitters |
 | [dialects.md](docs/dialects.md) | what a dialect controls, and writing one |

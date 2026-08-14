@@ -1,0 +1,39 @@
+{
+  "name": "tickets",
+  "options": { "fallbackFields": ["title"] },
+  "fields": [
+    { "name": "id", "type": "uuid", "column": "t.id", "description": "Ticket id" },
+    { "name": "title", "type": "string", "column": "t.title", "description": "One-line summary" },
+
+    { "name": "status", "type": "enum", "column": "t.status::text",
+      "values": ["open", "in_progress", "blocked", "closed"],
+      "description": "Workflow state" },
+
+    { "name": "priority", "type": "number", "column": "t.priority",
+      "description": "1 is highest, 5 is lowest" },
+
+    { "name": "assignee", "type": "string", "column": "u.display_name",
+      "description": "Who it is assigned to" },
+
+    { "name": "team", "type": "enum", "column": "tm.name", "dynamic": true,
+      "description": "Owning team" },
+
+    { "name": "age", "type": "duration", "column": "t.created_at",
+      "description": "How long ago it was opened" },
+
+    { "name": "overdue", "type": "boolean", "column": "(t.due_at < now())",
+      "description": "Past its due date" },
+
+    { "name": "comments", "type": "number",
+      "column": "(SELECT count(*) FROM comment c WHERE c.ticket_id = t.id)",
+      "description": "Number of comments" },
+
+    { "name": "source", "type": "string", "column": "(t.meta ->> 'source')",
+      "description": "Where the ticket came from" }
+  ],
+  "sorts": [
+    { "key": "created", "sql": "t.created_at" },
+    { "key": "priority", "sql": "t.priority" },
+    { "key": "comments", "sql": "(SELECT count(*) FROM comment c WHERE c.ticket_id = t.id)" }
+  ]
+}

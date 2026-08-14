@@ -38,6 +38,18 @@ jobs:
       - name: js test
         run: node --test js/packages/core/test/*.test.js js/packages/monaco/test/*.test.js js/packages/codemirror/test/*.test.js
 
+      # The example and the docs generator are separate modules, so `go build
+      # ./...` at the root does not see them. They rot silently otherwise.
+      - name: extra modules
+        run: |
+          (cd examples/tickets && go build ./...)
+          (cd site/build && go build ./...)
+
+      # Renders every doc page: a broken markdown link or a generator change
+      # that mangles a table fails here rather than on the deployed site.
+      - name: site assembles
+        run: make site-build
+
       - name: every registered adapter actually ran
         run: |
           go test ./conformance -v 2>&1 | tee /tmp/conformance.log
